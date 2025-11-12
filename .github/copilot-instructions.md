@@ -10,6 +10,7 @@ This is a custom Playwright reporter for Stanterprise. Playwright reporters proc
 
 - Implement the `Reporter` interface from `@playwright/test/reporter`
 - Core methods: `onBegin()`, `onTestBegin()`, `onTestEnd()`, `onEnd()`
+- Expand to all lifecycle hooks
 - Use TypeScript for type safety with Playwright's reporter types
 
 ### File Structure Convention

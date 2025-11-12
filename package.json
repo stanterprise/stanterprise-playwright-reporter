@@ -1,0 +1,29 @@
+{
+  "name": "stanterprise-playwright-reporter",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/stanterprise/stanterprise-playwright-reporter#readme",
+  "bugs": {
+    "url": "https://github.com/stanterprise/stanterprise-playwright-reporter/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stanterprise/stanterprise-playwright-reporter.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.15.29"
+  },
+  "dependencies": {
+    "@protobuf-ts/grpc-transport": "^2.11.1",
+    "@protobuf-ts/grpcweb-transport": "^2.11.1",
+    "@stanterprise/protobuf": "^0.0.9"
+  }
+}
