@@ -17,19 +17,51 @@ import {
 } from "@stanterprise/protobuf";
 import * as grpc from "@grpc/grpc-js";
 import { randomUUID } from "crypto";
+import { StanterpriseReporterOptions } from "./types";
+import {
+  mapTestStatus,
+  mapStepStatus,
+  processAttachments,
+  extractErrorInfo,
+  createTimestamp,
+  createTimestampFromMs,
+  createDuration,
+} from "./utils";
 
 export default class StanterpriseReporter implements Reporter {
   // Generic gRPC client (we call unary methods by path directly).
   private grpcClient: grpc.Client | null = null;
-  private grpcAddress: string =
-    process.env.STANTERPRISE_GRPC_ADDRESS || "localhost:50051";
-  private grpcEnabled: boolean =
-    (process.env.STANTERPRISE_GRPC_ENABLED || "true").toLowerCase() !== "false";
+  private grpcAddress: string;
+  private grpcEnabled: boolean;
+  private grpcTimeout: number;
   private grpcFirstErrorLogged = false;
+  private verbose: boolean;
 
   // Generate a unique run ID for this test run
   private runId: string = "";
   private runStartTime: Date = new Date();
+
+  constructor(options: StanterpriseReporterOptions = {}) {
+    this.grpcAddress =
+      options.grpcAddress ||
+      process.env.STANTERPRISE_GRPC_ADDRESS ||
+      "localhost:50051";
+    this.grpcEnabled =
+      options.grpcEnabled ??
+      (process.env.STANTERPRISE_GRPC_ENABLED || "true").toLowerCase() !==
+        "false";
+    this.grpcTimeout = options.grpcTimeout || 1000;
+    this.verbose = options.verbose || false;
+
+    if (this.verbose) {
+      console.log("Stanterprise Reporter: Initialized with options:", {
+        grpcAddress: this.grpcAddress,
+        grpcEnabled: this.grpcEnabled,
+        grpcTimeout: this.grpcTimeout,
+        verbose: this.verbose,
+      });
+    }
+  }
 
   onBegin(config: FullConfig, suite: Suite): void {
     // Generate a UUID for runId
@@ -121,7 +153,7 @@ export default class StanterpriseReporter implements Reporter {
     this.reportUnary(
       "/testsystem.v1.observer.TestEventCollector/ReportTestBegin",
       request,
-      1000
+      this.grpcTimeout
     ).catch((e) => this.logGrpcErrorOnce("Failed to report test begin", e));
   }
 
@@ -129,13 +161,141 @@ export default class StanterpriseReporter implements Reporter {
     test: TestCase,
     result: TestResult,
     step: TestStep
-  ): Promise<void> {}
+  ): Promise<void> {
+    const uniqueTestExecutionId = `${this.runId}-${test.id}`;
+    const uniqueStepId = `${uniqueTestExecutionId}-${step.title}-${step.startTime.getTime()}`;
 
-  onStepEnd(test: TestCase, result: TestResult, step: TestStep): void {}
+    console.log(`Stanterprise Reporter: Step started - ${step.title}`);
+    console.log(`  Category: ${step.category}`);
 
-  onTestEnd(test: TestCase, result: TestResult): void {}
+    // Build and send the StepBegin event
+    const request = new events.StepBeginEventRequest({
+      step: new entities.StepRun({
+        id: uniqueStepId,
+        run_id: this.runId,
+        test_case_run_id: uniqueTestExecutionId,
+        title: step.title,
+        type: step.category,
+        start_time: createTimestamp(step.startTime),
+        location: step.location
+          ? `${step.location.file}:${step.location.line}:${step.location.column}`
+          : "",
+      }),
+    });
 
-  onTestFail(test: TestCase, result: TestResult): void {}
+    // Fire-and-forget to avoid slowing tests
+    this.reportUnary(
+      "/testsystem.v1.observer.TestEventCollector/ReportStepBegin",
+      request,
+      this.grpcTimeout
+    ).catch((e) => this.logGrpcErrorOnce("Failed to report step begin", e));
+  }
+
+  onStepEnd(test: TestCase, result: TestResult, step: TestStep): void {
+    const uniqueTestExecutionId = `${this.runId}-${test.id}`;
+    const uniqueStepId = `${uniqueTestExecutionId}-${step.title}-${step.startTime.getTime()}`;
+
+    console.log(`Stanterprise Reporter: Step ended - ${step.title}`);
+    console.log(`  Duration: ${step.duration}ms`);
+
+    // Map step error to status
+    const stepStatus = mapStepStatus(!!step.error);
+
+    // Build and send the StepEnd event
+    const request = new events.StepEndEventRequest({
+      step: new entities.StepRun({
+        id: uniqueStepId,
+        run_id: this.runId,
+        test_case_run_id: uniqueTestExecutionId,
+        title: step.title,
+        type: step.category,
+        start_time: createTimestamp(step.startTime),
+        duration: createDuration(step.duration),
+        status: stepStatus,
+        error: step.error ? step.error.message || "" : "",
+        errors: step.error ? [step.error.message || ""] : [],
+        location: step.location
+          ? `${step.location.file}:${step.location.line}:${step.location.column}`
+          : "",
+      }),
+    });
+
+    // Fire-and-forget to avoid slowing tests
+    this.reportUnary(
+      "/testsystem.v1.observer.TestEventCollector/ReportStepEnd",
+      request,
+      this.grpcTimeout
+    ).catch((e) => this.logGrpcErrorOnce("Failed to report step end", e));
+  }
+
+  onTestEnd(test: TestCase, result: TestResult): void {
+    const uniqueTestExecutionId = `${this.runId}-${test.id}`;
+
+    console.log(`Stanterprise Reporter: Test ended - ${test.title}`);
+    console.log(`  Status: ${result.status}`);
+    console.log(`  Duration: ${result.duration}ms`);
+
+    // Map Playwright test status to protobuf TestStatus
+    const testStatus = mapTestStatus(result.status);
+
+    // Process attachments (screenshots, videos, etc.)
+    const attachments = processAttachments(result);
+
+    // Extract error information if the test failed
+    const { errorMessage, stackTrace, errors } = extractErrorInfo(result);
+
+    // Build and send the TestEnd event
+    const request = new events.TestEndEventRequest({
+      test_case: new entities.TestCaseRun({
+        id: uniqueTestExecutionId,
+        title: test.title,
+        run_id: this.runId,
+        test_id: test.id,
+        status: testStatus,
+        attachments: attachments,
+        error_message: errorMessage,
+        stack_trace: stackTrace,
+        errors: errors,
+      }),
+    });
+
+    // Fire-and-forget to avoid slowing tests
+    this.reportUnary(
+      "/testsystem.v1.observer.TestEventCollector/ReportTestEnd",
+      request,
+      this.grpcTimeout
+    ).catch((e) => this.logGrpcErrorOnce("Failed to report test end", e));
+  }
+
+  onTestFail(test: TestCase, result: TestResult): void {
+    const uniqueTestExecutionId = `${this.runId}-${test.id}`;
+
+    if (this.verbose) {
+      console.log(`Stanterprise Reporter: Test failed - ${test.title}`);
+    }
+
+    // Extract failure details
+    const { errorMessage: failureMessage, stackTrace } = extractErrorInfo(result);
+
+    // Process attachments for failed tests
+    const attachments = processAttachments(result);
+
+    // Build and send the TestFailure event
+    const request = new events.TestFailureEventRequest({
+      test_id: uniqueTestExecutionId,
+      failure_message: failureMessage,
+      stack_trace: stackTrace,
+      timestamp: createTimestampFromMs(Date.now()),
+      attachments: attachments,
+    });
+
+    // Fire-and-forget to avoid slowing tests
+    this.reportUnary(
+      "/testsystem.v1.observer.TestEventCollector/ReportTestFailure",
+      request,
+      this.grpcTimeout
+    ).catch((e) => this.logGrpcErrorOnce("Failed to report test failure", e));
+  }
 
   onError(error: TestError): void {
     console.error(
