@@ -270,7 +270,9 @@ export default class StanterpriseReporter implements Reporter {
   onTestFail(test: TestCase, result: TestResult): void {
     const uniqueTestExecutionId = `${this.runId}-${test.id}`;
 
-    console.log(`Stanterprise Reporter: Test failed - ${test.title}`);
+    if (this.verbose) {
+      console.log(`Stanterprise Reporter: Test failed - ${test.title}`);
+    }
 
     // Extract failure details
     const { errorMessage: failureMessage, stackTrace } = extractErrorInfo(result);
