@@ -67,7 +67,6 @@ export default class StanterpriseReporter implements Reporter {
     try {
       this.grpcClient?.close();
     } catch {}
-    // return Promise.resolve();
   }
 
   // Getter to access the current run ID
