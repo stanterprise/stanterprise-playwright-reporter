@@ -27,7 +27,7 @@ export function createTimestampFromMs(ms: number): InstanceType<typeof google.pr
  * Create a duration object from milliseconds
  * Note: Returns a plain object that matches the Duration interface
  */
-export function createDuration(durationMs: number): any {
+export function createDuration(durationMs: number): InstanceType<typeof google.protobuf.Duration> {
   return {
     seconds: Math.floor(durationMs / 1000),
     nanos: (durationMs % 1000) * 1000000,
