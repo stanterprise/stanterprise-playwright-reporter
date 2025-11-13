@@ -15,22 +15,53 @@ import {
   common,
   entities,
 } from "@stanterprise/protobuf";
-import { google as googleProtobuf } from "@stanterprise/protobuf/dist/lib/google/protobuf/duration";
 import * as grpc from "@grpc/grpc-js";
 import { randomUUID } from "crypto";
+import { StanterpriseReporterOptions } from "./types";
+import {
+  mapTestStatus,
+  mapStepStatus,
+  processAttachments,
+  extractErrorInfo,
+  createTimestamp,
+  createTimestampFromMs,
+  createDuration,
+} from "./utils";
 
 export default class StanterpriseReporter implements Reporter {
   // Generic gRPC client (we call unary methods by path directly).
   private grpcClient: grpc.Client | null = null;
-  private grpcAddress: string =
-    process.env.STANTERPRISE_GRPC_ADDRESS || "localhost:50051";
-  private grpcEnabled: boolean =
-    (process.env.STANTERPRISE_GRPC_ENABLED || "true").toLowerCase() !== "false";
+  private grpcAddress: string;
+  private grpcEnabled: boolean;
+  private grpcTimeout: number;
   private grpcFirstErrorLogged = false;
+  private verbose: boolean;
 
   // Generate a unique run ID for this test run
   private runId: string = "";
   private runStartTime: Date = new Date();
+
+  constructor(options: StanterpriseReporterOptions = {}) {
+    this.grpcAddress =
+      options.grpcAddress ||
+      process.env.STANTERPRISE_GRPC_ADDRESS ||
+      "localhost:50051";
+    this.grpcEnabled =
+      options.grpcEnabled ??
+      (process.env.STANTERPRISE_GRPC_ENABLED || "true").toLowerCase() !==
+        "false";
+    this.grpcTimeout = options.grpcTimeout || 1000;
+    this.verbose = options.verbose || false;
+
+    if (this.verbose) {
+      console.log("Stanterprise Reporter: Initialized with options:", {
+        grpcAddress: this.grpcAddress,
+        grpcEnabled: this.grpcEnabled,
+        grpcTimeout: this.grpcTimeout,
+        verbose: this.verbose,
+      });
+    }
+  }
 
   onBegin(config: FullConfig, suite: Suite): void {
     // Generate a UUID for runId
@@ -122,7 +153,7 @@ export default class StanterpriseReporter implements Reporter {
     this.reportUnary(
       "/testsystem.v1.observer.TestEventCollector/ReportTestBegin",
       request,
-      1000
+      this.grpcTimeout
     ).catch((e) => this.logGrpcErrorOnce("Failed to report test begin", e));
   }
 
@@ -145,10 +176,7 @@ export default class StanterpriseReporter implements Reporter {
         test_case_run_id: uniqueTestExecutionId,
         title: step.title,
         type: step.category,
-        start_time: new google.protobuf.Timestamp({
-          seconds: Math.floor(step.startTime.getTime() / 1000),
-          nanos: (step.startTime.getTime() % 1000) * 1000000,
-        }),
+        start_time: createTimestamp(step.startTime),
         location: step.location
           ? `${step.location.file}:${step.location.line}:${step.location.column}`
           : "",
@@ -159,7 +187,7 @@ export default class StanterpriseReporter implements Reporter {
     this.reportUnary(
       "/testsystem.v1.observer.TestEventCollector/ReportStepBegin",
       request,
-      1000
+      this.grpcTimeout
     ).catch((e) => this.logGrpcErrorOnce("Failed to report step begin", e));
   }
 
@@ -171,9 +199,7 @@ export default class StanterpriseReporter implements Reporter {
     console.log(`  Duration: ${step.duration}ms`);
 
     // Map step error to status
-    const stepStatus = step.error
-      ? common.TestStatus.FAILED
-      : common.TestStatus.PASSED;
+    const stepStatus = mapStepStatus(!!step.error);
 
     // Build and send the StepEnd event
     const request = new events.StepEndEventRequest({
@@ -183,14 +209,8 @@ export default class StanterpriseReporter implements Reporter {
         test_case_run_id: uniqueTestExecutionId,
         title: step.title,
         type: step.category,
-        start_time: new google.protobuf.Timestamp({
-          seconds: Math.floor(step.startTime.getTime() / 1000),
-          nanos: (step.startTime.getTime() % 1000) * 1000000,
-        }),
-        duration: new googleProtobuf.protobuf.Duration({
-          seconds: Math.floor(step.duration / 1000),
-          nanos: (step.duration % 1000) * 1000000,
-        }),
+        start_time: createTimestamp(step.startTime),
+        duration: createDuration(step.duration),
         status: stepStatus,
         error: step.error ? step.error.message || "" : "",
         errors: step.error ? [step.error.message || ""] : [],
@@ -204,7 +224,7 @@ export default class StanterpriseReporter implements Reporter {
     this.reportUnary(
       "/testsystem.v1.observer.TestEventCollector/ReportStepEnd",
       request,
-      1000
+      this.grpcTimeout
     ).catch((e) => this.logGrpcErrorOnce("Failed to report step end", e));
   }
 
@@ -216,52 +236,13 @@ export default class StanterpriseReporter implements Reporter {
     console.log(`  Duration: ${result.duration}ms`);
 
     // Map Playwright test status to protobuf TestStatus
-    let testStatus = common.TestStatus.UNKNOWN;
-    switch (result.status) {
-      case "passed":
-        testStatus = common.TestStatus.PASSED;
-        break;
-      case "failed":
-        testStatus = common.TestStatus.FAILED;
-        break;
-      case "skipped":
-        testStatus = common.TestStatus.SKIPPED;
-        break;
-      case "timedOut":
-        testStatus = common.TestStatus.FAILED; // Treat timeout as failed
-        break;
-    }
+    const testStatus = mapTestStatus(result.status);
 
     // Process attachments (screenshots, videos, etc.)
-    const attachments: InstanceType<typeof common.Attachment>[] = [];
-    if (result.attachments && result.attachments.length > 0) {
-      for (const attachment of result.attachments) {
-        const att = new common.Attachment({
-          name: attachment.name,
-          mime_type: attachment.contentType,
-        });
-
-        // Use path as URI if available, otherwise we'd need to read the body
-        if (attachment.path) {
-          att.uri = attachment.path;
-        } else if (attachment.body) {
-          att.content = attachment.body;
-        }
-
-        attachments.push(att);
-      }
-    }
+    const attachments = processAttachments(result);
 
     // Extract error information if the test failed
-    let errorMessage = "";
-    let stackTrace = "";
-    const errors: string[] = [];
-
-    if (result.errors && result.errors.length > 0) {
-      errorMessage = result.errors.map((e) => e.message || "").join("\n");
-      stackTrace = result.errors.map((e) => e.stack || "").join("\n");
-      errors.push(...result.errors.map((e) => e.message || ""));
-    }
+    const { errorMessage, stackTrace, errors } = extractErrorInfo(result);
 
     // Build and send the TestEnd event
     const request = new events.TestEndEventRequest({
@@ -282,7 +263,7 @@ export default class StanterpriseReporter implements Reporter {
     this.reportUnary(
       "/testsystem.v1.observer.TestEventCollector/ReportTestEnd",
       request,
-      1000
+      this.grpcTimeout
     ).catch((e) => this.logGrpcErrorOnce("Failed to report test end", e));
   }
 
@@ -292,42 +273,17 @@ export default class StanterpriseReporter implements Reporter {
     console.log(`Stanterprise Reporter: Test failed - ${test.title}`);
 
     // Extract failure details
-    let failureMessage = "";
-    let stackTrace = "";
-    const attachments: InstanceType<typeof common.Attachment>[] = [];
-
-    if (result.errors && result.errors.length > 0) {
-      failureMessage = result.errors.map((e) => e.message || "").join("\n");
-      stackTrace = result.errors.map((e) => e.stack || "").join("\n");
-    }
+    const { errorMessage: failureMessage, stackTrace } = extractErrorInfo(result);
 
     // Process attachments for failed tests
-    if (result.attachments && result.attachments.length > 0) {
-      for (const attachment of result.attachments) {
-        const att = new common.Attachment({
-          name: attachment.name,
-          mime_type: attachment.contentType,
-        });
-
-        if (attachment.path) {
-          att.uri = attachment.path;
-        } else if (attachment.body) {
-          att.content = attachment.body;
-        }
-
-        attachments.push(att);
-      }
-    }
+    const attachments = processAttachments(result);
 
     // Build and send the TestFailure event
     const request = new events.TestFailureEventRequest({
       test_id: uniqueTestExecutionId,
       failure_message: failureMessage,
       stack_trace: stackTrace,
-      timestamp: new google.protobuf.Timestamp({
-        seconds: Math.floor(Date.now() / 1000),
-        nanos: (Date.now() % 1000) * 1000000,
-      }),
+      timestamp: createTimestampFromMs(Date.now()),
       attachments: attachments,
     });
 
@@ -335,7 +291,7 @@ export default class StanterpriseReporter implements Reporter {
     this.reportUnary(
       "/testsystem.v1.observer.TestEventCollector/ReportTestFailure",
       request,
-      1000
+      this.grpcTimeout
     ).catch((e) => this.logGrpcErrorOnce("Failed to report test failure", e));
   }
 
