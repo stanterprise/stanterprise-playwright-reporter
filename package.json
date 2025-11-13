@@ -1,0 +1,35 @@
+{
+  "name": "stanterprise-playwright-reporter",
+  "version": "1.0.0",
+  "description": "Custom Playwright test reporter that sends test results to Stanterprise via gRPC",
+  "homepage": "https://github.com/stanterprise/stanterprise-playwright-reporter#readme",
+  "bugs": {
+    "url": "https://github.com/stanterprise/stanterprise-playwright-reporter/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stanterprise/stanterprise-playwright-reporter.git"
+  },
+  "license": "ISC",
+  "author": "Stanterprise Team",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.15.29",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.1",
+    "@protobuf-ts/grpc-transport": "^2.11.1",
+    "@protobuf-ts/grpcweb-transport": "^2.11.1",
+    "@stanterprise/protobuf": "^0.0.9"
+  }
+}
