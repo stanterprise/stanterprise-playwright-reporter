@@ -66,7 +66,9 @@ export default class StanterpriseReporter implements Reporter {
     // Cleanup gRPC client
     try {
       this.grpcClient?.close();
-    } catch {}
+    } catch (e) {
+      console.error("Stanterprise Reporter: Error during gRPC client cleanup in onExit:", e);
+    }
   }
 
   // Getter to access the current run ID
