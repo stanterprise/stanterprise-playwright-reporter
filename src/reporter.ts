@@ -140,12 +140,31 @@ export default class StanterpriseReporter implements Reporter {
     console.log(`  Test ID (static): ${test.id}`);
     console.log(`  Unique Execution ID: ${uniqueTestExecutionId}`);
 
+    // Get test suite run ID from parent suite if available
+    const testSuiteRunId = test.parent 
+      ? `${this.runId}-suite-${test.parent.title || 'root'}`
+      : "";
+
+    // Build metadata from test annotations
+    const metadata = new Map<string, string>();
+    test.annotations.forEach((annotation, index) => {
+      metadata.set(`annotation_${index}_type`, annotation.type);
+      if (annotation.description) {
+        metadata.set(`annotation_${index}_description`, annotation.description);
+      }
+    });
+
     // Build and send the TestBegin event via generic unary call.
     const request = new events.TestBeginEventRequest({
       test_case: new entities.TestCaseRun({
         id: uniqueTestExecutionId,
         title: test.title,
         run_id: this.runId,
+        test_id: test.id,
+        test_suite_run_id: testSuiteRunId,
+        start_time: createTimestamp(result.startTime),
+        metadata: metadata,
+        actual_tags: test.tags,
       }),
     });
 
@@ -168,6 +187,21 @@ export default class StanterpriseReporter implements Reporter {
     console.log(`Stanterprise Reporter: Step started - ${step.title}`);
     console.log(`  Category: ${step.category}`);
 
+    // Build metadata from step annotations
+    const metadata = new Map<string, string>();
+    metadata.set("category", step.category);
+    step.annotations.forEach((annotation, index) => {
+      metadata.set(`annotation_${index}_type`, annotation.type);
+      if (annotation.description) {
+        metadata.set(`annotation_${index}_description`, annotation.description);
+      }
+    });
+
+    // Get parent step ID if this step has a parent
+    const parentStepId = step.parent
+      ? `${uniqueTestExecutionId}-${step.parent.title}-${step.parent.startTime.getTime()}`
+      : "";
+
     // Build and send the StepBegin event
     const request = new events.StepBeginEventRequest({
       step: new entities.StepRun({
@@ -180,6 +214,9 @@ export default class StanterpriseReporter implements Reporter {
         location: step.location
           ? `${step.location.file}:${step.location.line}:${step.location.column}`
           : "",
+        metadata: metadata,
+        parent_step_id: parentStepId,
+        worker_index: result.workerIndex.toString(),
       }),
     });
 
@@ -201,6 +238,21 @@ export default class StanterpriseReporter implements Reporter {
     // Map step error to status
     const stepStatus = mapStepStatus(!!step.error);
 
+    // Build metadata from step annotations
+    const metadata = new Map<string, string>();
+    metadata.set("category", step.category);
+    step.annotations.forEach((annotation, index) => {
+      metadata.set(`annotation_${index}_type`, annotation.type);
+      if (annotation.description) {
+        metadata.set(`annotation_${index}_description`, annotation.description);
+      }
+    });
+
+    // Get parent step ID if this step has a parent
+    const parentStepId = step.parent
+      ? `${uniqueTestExecutionId}-${step.parent.title}-${step.parent.startTime.getTime()}`
+      : "";
+
     // Build and send the StepEnd event
     const request = new events.StepEndEventRequest({
       step: new entities.StepRun({
@@ -217,6 +269,9 @@ export default class StanterpriseReporter implements Reporter {
         location: step.location
           ? `${step.location.file}:${step.location.line}:${step.location.column}`
           : "",
+        metadata: metadata,
+        parent_step_id: parentStepId,
+        worker_index: result.workerIndex.toString(),
       }),
     });
 
@@ -244,6 +299,26 @@ export default class StanterpriseReporter implements Reporter {
     // Extract error information if the test failed
     const { errorMessage, stackTrace, errors } = extractErrorInfo(result);
 
+    // Get test suite run ID from parent suite if available
+    const testSuiteRunId = test.parent 
+      ? `${this.runId}-suite-${test.parent.title || 'root'}`
+      : "";
+
+    // Build metadata from test annotations and result metadata
+    const metadata = new Map<string, string>();
+    test.annotations.forEach((annotation, index) => {
+      metadata.set(`annotation_${index}_type`, annotation.type);
+      if (annotation.description) {
+        metadata.set(`annotation_${index}_description`, annotation.description);
+      }
+    });
+    result.annotations.forEach((annotation, index) => {
+      metadata.set(`result_annotation_${index}_type`, annotation.type);
+      if (annotation.description) {
+        metadata.set(`result_annotation_${index}_description`, annotation.description);
+      }
+    });
+
     // Build and send the TestEnd event
     const request = new events.TestEndEventRequest({
       test_case: new entities.TestCaseRun({
@@ -251,11 +326,15 @@ export default class StanterpriseReporter implements Reporter {
         title: test.title,
         run_id: this.runId,
         test_id: test.id,
+        test_suite_run_id: testSuiteRunId,
         status: testStatus,
+        start_time: createTimestamp(result.startTime),
         attachments: attachments,
         error_message: errorMessage,
         stack_trace: stackTrace,
         errors: errors,
+        metadata: metadata,
+        actual_tags: test.tags,
       }),
     });
 
