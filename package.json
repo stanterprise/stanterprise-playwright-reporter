@@ -15,6 +15,25 @@
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "keywords": [
+    "playwright",
+    "reporter",
+    "test",
+    "testing",
+    "stanterprise",
+    "grpc",
+    "playwright-reporter"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.20.0"
+  },
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",

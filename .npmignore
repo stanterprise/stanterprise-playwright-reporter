@@ -1,0 +1,49 @@
+# Source files (we only publish compiled dist/)
+src/
+tests/
+examples/
+
+# Development files
+.github/
+*.md
+!README.md
+DEV_PLAN.md
+DEVELOPMENT_STATUS.md
+
+# Configuration files
+jest.config.js
+tsconfig.json
+.gitignore
+.eslintrc*
+.prettierrc*
+
+# Build artifacts
+*.tsbuildinfo
+.nyc_output
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test output
+test-results/
+playwright-report/
+results.json
+test-report.html
+reporter-output/
