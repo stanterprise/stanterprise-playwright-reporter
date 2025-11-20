@@ -41,6 +41,8 @@ export default class StanterpriseReporter implements Reporter {
   private runId: string = "";
   private runStartTime: Date = new Date();
   private rootSuite: Suite | null = null;
+  // Track reported suites to ensure we only report each suite once and can reference correct IDs
+  private reportedSuites: Map<Suite, string> = new Map();
 
   constructor(options: StanterpriseReporterOptions = {}) {
     this.grpcAddress =
@@ -91,8 +93,8 @@ export default class StanterpriseReporter implements Reporter {
     console.log(`Number of tests: ${suite.allTests().length}`);
     console.log(`Run started at: ${this.runStartTime.toISOString()}`);
     
-    // Report root suite begin
-    this.reportSuiteBegin(suite);
+    // Report root suite begin and track its ID
+    const rootSuiteId = this.getSuiteId(suite);
   }
 
   async onExit(): Promise<void> {
@@ -149,10 +151,8 @@ export default class StanterpriseReporter implements Reporter {
     console.log(`  Test ID (static): ${test.id}`);
     console.log(`  Unique Execution ID: ${uniqueTestExecutionId}`);
 
-    // Get test suite run ID from parent suite if available
-    const testSuiteRunId = test.parent 
-      ? `${this.runId}-suite-${test.parent.title || 'root'}`
-      : "";
+    // Get test suite run ID from parent suite if available, ensuring suite is reported
+    const testSuiteRunId = test.parent ? this.getSuiteId(test.parent) : "";
 
     // Build metadata from test annotations
     const metadata = new Map<string, string>();
@@ -308,10 +308,8 @@ export default class StanterpriseReporter implements Reporter {
     // Extract error information if the test failed
     const { errorMessage, stackTrace, errors } = extractErrorInfo(result);
 
-    // Get test suite run ID from parent suite if available
-    const testSuiteRunId = test.parent 
-      ? `${this.runId}-suite-${test.parent.title || 'root'}`
-      : "";
+    // Get test suite run ID from parent suite if available, ensuring suite is reported
+    const testSuiteRunId = test.parent ? this.getSuiteId(test.parent) : "";
 
     // Build metadata from test annotations and result metadata
     const metadata = new Map<string, string>();
@@ -413,9 +411,29 @@ export default class StanterpriseReporter implements Reporter {
     // console.log(`Stanterprise Reporter: Standard output - ${chunk.toString()}`);
   }
 
+  // Helper: Get suite ID for a suite, ensuring it's been reported
+  private getSuiteId(suite: Suite): string {
+    // Check if we've already reported this suite
+    if (this.reportedSuites.has(suite)) {
+      return this.reportedSuites.get(suite)!;
+    }
+
+    // Generate a unique suite ID based on suite hierarchy
+    const titlePath = suite.titlePath().join('/') || 'root';
+    const suiteId = `${this.runId}-suite-${titlePath}`;
+    
+    // Report the suite begin event
+    this.reportSuiteBegin(suite, suiteId);
+    
+    // Track that we've reported this suite
+    this.reportedSuites.set(suite, suiteId);
+    
+    return suiteId;
+  }
+
   // Helper: Report suite begin event
-  private reportSuiteBegin(suite: Suite): void {
-    const suiteId = `${this.runId}-suite-${suite.title || 'root'}`;
+  private reportSuiteBegin(suite: Suite, suiteId?: string): void {
+    const id = suiteId || `${this.runId}-suite-${suite.title || 'root'}`;
     
     console.log(`Stanterprise Reporter: Suite started - ${suite.title || 'root'}`);
     console.log(`  Suite type: ${suite.type}`);
@@ -432,7 +450,7 @@ export default class StanterpriseReporter implements Reporter {
     // Build and send the SuiteBegin event
     const request = new events.SuiteBeginEventRequest({
       suite: new entities.TestSuiteRun({
-        id: suiteId,
+        id: id,
         name: suite.title || 'root',
         start_time: createTimestamp(this.runStartTime),
         metadata: metadata,
