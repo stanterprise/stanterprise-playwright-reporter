@@ -40,6 +40,7 @@ export default class StanterpriseReporter implements Reporter {
   // Generate a unique run ID for this test run
   private runId: string = "";
   private runStartTime: Date = new Date();
+  private rootSuite: Suite | null = null;
 
   constructor(options: StanterpriseReporterOptions = {}) {
     this.grpcAddress =
@@ -66,6 +67,7 @@ export default class StanterpriseReporter implements Reporter {
   onBegin(config: FullConfig, suite: Suite): void {
     // Generate a UUID for runId
     this.runId = randomUUID();
+    this.rootSuite = suite;
 
     // Lazily create the client if enabled.
     if (this.grpcEnabled) {
@@ -88,7 +90,9 @@ export default class StanterpriseReporter implements Reporter {
     );
     console.log(`Number of tests: ${suite.allTests().length}`);
     console.log(`Run started at: ${this.runStartTime.toISOString()}`);
-    // console.log(`Configuration: ${JSON.stringify(config, null, 2)}`);
+    
+    // Report root suite begin
+    this.reportSuiteBegin(suite);
   }
 
   async onExit(): Promise<void> {
@@ -127,6 +131,11 @@ export default class StanterpriseReporter implements Reporter {
     );
     console.log(`Run start time: ${this.runStartTime.toISOString()}`);
     console.log(`Playwright start time: ${result.startTime.toISOString()}`);
+
+    // Report root suite end
+    if (this.rootSuite) {
+      this.reportSuiteEnd(this.rootSuite, result);
+    }
 
     return Promise.resolve();
   }
@@ -402,6 +411,99 @@ export default class StanterpriseReporter implements Reporter {
     result: void | TestResult
   ): void {
     // console.log(`Stanterprise Reporter: Standard output - ${chunk.toString()}`);
+  }
+
+  // Helper: Report suite begin event
+  private reportSuiteBegin(suite: Suite): void {
+    const suiteId = `${this.runId}-suite-${suite.title || 'root'}`;
+    
+    console.log(`Stanterprise Reporter: Suite started - ${suite.title || 'root'}`);
+    console.log(`  Suite type: ${suite.type}`);
+
+    // Build metadata from suite location
+    const metadata = new Map<string, string>();
+    metadata.set("suite_type", suite.type);
+    if (suite.location) {
+      metadata.set("location_file", suite.location.file);
+      metadata.set("location_line", suite.location.line.toString());
+      metadata.set("location_column", suite.location.column.toString());
+    }
+
+    // Build and send the SuiteBegin event
+    const request = new events.SuiteBeginEventRequest({
+      suite: new entities.TestSuiteRun({
+        id: suiteId,
+        name: suite.title || 'root',
+        start_time: createTimestamp(this.runStartTime),
+        metadata: metadata,
+      }),
+    });
+
+    // Fire-and-forget to avoid slowing tests
+    this.reportUnary(
+      "/testsystem.v1.observer.TestEventCollector/ReportSuiteBegin",
+      request,
+      this.grpcTimeout
+    ).catch((e) => this.logGrpcErrorOnce("Failed to report suite begin", e));
+  }
+
+  // Helper: Report suite end event
+  private reportSuiteEnd(suite: Suite, result: FullResult): void {
+    const suiteId = `${this.runId}-suite-${suite.title || 'root'}`;
+    const endTime = new Date();
+    const duration = endTime.getTime() - this.runStartTime.getTime();
+
+    console.log(`Stanterprise Reporter: Suite ended - ${suite.title || 'root'}`);
+    console.log(`  Duration: ${duration}ms`);
+
+    // Map result status to protobuf TestStatus
+    const suiteStatus = this.mapSuiteStatus(result.status);
+
+    // Build metadata from suite location
+    const metadata = new Map<string, string>();
+    metadata.set("suite_type", suite.type);
+    metadata.set("final_result", result.status);
+    if (suite.location) {
+      metadata.set("location_file", suite.location.file);
+      metadata.set("location_line", suite.location.line.toString());
+      metadata.set("location_column", suite.location.column.toString());
+    }
+
+    // Build and send the SuiteEnd event
+    const request = new events.SuiteEndEventRequest({
+      suite: new entities.TestSuiteRun({
+        id: suiteId,
+        name: suite.title || 'root',
+        start_time: createTimestamp(this.runStartTime),
+        end_time: createTimestamp(endTime),
+        duration: createDuration(duration),
+        status: suiteStatus,
+        metadata: metadata,
+      }),
+    });
+
+    // Fire-and-forget to avoid slowing tests
+    this.reportUnary(
+      "/testsystem.v1.observer.TestEventCollector/ReportSuiteEnd",
+      request,
+      this.grpcTimeout
+    ).catch((e) => this.logGrpcErrorOnce("Failed to report suite end", e));
+  }
+
+  // Helper: Map FullResult status to protobuf TestStatus
+  private mapSuiteStatus(status: FullResult["status"]): number {
+    switch (status) {
+      case "passed":
+        return common.TestStatus.PASSED;
+      case "failed":
+        return common.TestStatus.FAILED;
+      case "timedout":
+        return common.TestStatus.FAILED;
+      case "interrupted":
+        return common.TestStatus.BROKEN;
+      default:
+        return common.TestStatus.UNKNOWN;
+    }
   }
 
   // Helper: log first gRPC error once and disable further attempts
