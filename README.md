@@ -211,26 +211,49 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### Publishing to NPM
 
+#### Automated Publishing (Recommended)
+
+The repository uses GitHub Actions to automatically publish to NPM when a version tag is pushed:
+
+1. Update the version following [semantic versioning](https://semver.org/):
+   ```bash
+   npm version patch  # for bug fixes (1.0.0 → 1.0.1)
+   npm version minor  # for new features (1.0.0 → 1.1.0)
+   npm version major  # for breaking changes (1.0.0 → 2.0.0)
+   ```
+
+2. Push the version tag to GitHub:
+   ```bash
+   git push --follow-tags
+   ```
+
+3. The GitHub Actions workflow will automatically:
+   - Run tests
+   - Build the package
+   - Publish to NPM with provenance
+
+**Note**: Requires `NPM_TOKEN` secret to be configured in GitHub repository settings with a valid NPM access token.
+
+#### Manual Publishing
+
+Alternatively, you can publish manually:
+
 1. Ensure all tests pass:
    ```bash
    npm test
    ```
 
-2. Update the version in `package.json` following [semantic versioning](https://semver.org/):
+2. Update the version:
    ```bash
-   npm version patch  # for bug fixes
-   npm version minor  # for new features
-   npm version major  # for breaking changes
+   npm version patch|minor|major
    ```
 
-3. The `prepublishOnly` script will automatically build the package before publishing
-
-4. Publish to NPM:
+3. Publish to NPM (prepublishOnly script will build automatically):
    ```bash
    npm publish
    ```
 
-5. Push the version tag to GitHub:
+4. Push the tag to GitHub:
    ```bash
    git push --follow-tags
    ```
