@@ -203,9 +203,52 @@ If you see gRPC connection errors:
 3. Look for error messages in the test output
 4. Try with `verbose: true` to see detailed logs
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## For Maintainers
+
+### Publishing to NPM
+
+1. Ensure all tests pass:
+   ```bash
+   npm test
+   ```
+
+2. Update the version in `package.json` following [semantic versioning](https://semver.org/):
+   ```bash
+   npm version patch  # for bug fixes
+   npm version minor  # for new features
+   npm version major  # for breaking changes
+   ```
+
+3. The `prepublishOnly` script will automatically build the package before publishing
+
+4. Publish to NPM:
+   ```bash
+   npm publish
+   ```
+
+5. Push the version tag to GitHub:
+   ```bash
+   git push --follow-tags
+   ```
+
+### What Gets Published
+
+The package includes:
+- `dist/` - Compiled JavaScript and TypeScript declarations
+- `README.md` - Documentation
+
+The following are excluded via `.npmignore`:
+- Source files (`src/`, `tests/`, `examples/`)
+- Development configuration files
+- Build artifacts and logs
+
 ## License
 
-ISC
+ISC - See [LICENSE](LICENSE) file for details
 
 ## Support
 
