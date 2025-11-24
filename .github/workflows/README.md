@@ -6,10 +6,10 @@ This repository uses GitHub Actions for continuous integration and automated NPM
 
 ### CI (`ci.yml`)
 
-Runs on every push to `main` or `develop` branches and on pull requests.
+Runs on every push to `master` branch and on pull requests.
 
 **What it does:**
-- Tests the package on Node.js versions 16, 18, and 20
+- Tests the package on Node.js versions 18 and 20
 - Runs all tests
 - Builds the package
 - Validates package creation
