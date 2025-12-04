@@ -92,9 +92,12 @@ export default class StanterpriseReporter implements Reporter {
     );
     console.log(`Number of tests: ${suite.allTests().length}`);
     console.log(`Run started at: ${this.runStartTime.toISOString()}`);
-    
+
     // Report root suite begin and track its ID
     const rootSuiteId = this.getSuiteId(suite);
+
+    // Report the suite begin event
+    this.reportSuiteBegin(suite, rootSuiteId);
   }
 
   async onExit(): Promise<void> {
@@ -105,7 +108,10 @@ export default class StanterpriseReporter implements Reporter {
     try {
       this.grpcClient?.close();
     } catch (e) {
-      console.error("Stanterprise Reporter: Error during gRPC client cleanup in onExit:", e);
+      console.error(
+        "Stanterprise Reporter: Error during gRPC client cleanup in onExit:",
+        e
+      );
     }
   }
 
@@ -191,7 +197,9 @@ export default class StanterpriseReporter implements Reporter {
     step: TestStep
   ): Promise<void> {
     const uniqueTestExecutionId = `${this.runId}-${test.id}`;
-    const uniqueStepId = `${uniqueTestExecutionId}-${step.title}-${step.startTime.getTime()}`;
+    const uniqueStepId = `${uniqueTestExecutionId}-${
+      step.title
+    }-${step.startTime.getTime()}`;
 
     console.log(`Stanterprise Reporter: Step started - ${step.title}`);
     console.log(`  Category: ${step.category}`);
@@ -208,7 +216,9 @@ export default class StanterpriseReporter implements Reporter {
 
     // Get parent step ID if this step has a parent
     const parentStepId = step.parent
-      ? `${uniqueTestExecutionId}-${step.parent.title}-${step.parent.startTime.getTime()}`
+      ? `${uniqueTestExecutionId}-${
+          step.parent.title
+        }-${step.parent.startTime.getTime()}`
       : "";
 
     // Build and send the StepBegin event
@@ -239,7 +249,9 @@ export default class StanterpriseReporter implements Reporter {
 
   onStepEnd(test: TestCase, result: TestResult, step: TestStep): void {
     const uniqueTestExecutionId = `${this.runId}-${test.id}`;
-    const uniqueStepId = `${uniqueTestExecutionId}-${step.title}-${step.startTime.getTime()}`;
+    const uniqueStepId = `${uniqueTestExecutionId}-${
+      step.title
+    }-${step.startTime.getTime()}`;
 
     console.log(`Stanterprise Reporter: Step ended - ${step.title}`);
     console.log(`  Duration: ${step.duration}ms`);
@@ -259,7 +271,9 @@ export default class StanterpriseReporter implements Reporter {
 
     // Get parent step ID if this step has a parent
     const parentStepId = step.parent
-      ? `${uniqueTestExecutionId}-${step.parent.title}-${step.parent.startTime.getTime()}`
+      ? `${uniqueTestExecutionId}-${
+          step.parent.title
+        }-${step.parent.startTime.getTime()}`
       : "";
 
     // Build and send the StepEnd event
@@ -322,7 +336,10 @@ export default class StanterpriseReporter implements Reporter {
     result.annotations.forEach((annotation, index) => {
       metadata.set(`result_annotation_${index}_type`, annotation.type);
       if (annotation.description) {
-        metadata.set(`result_annotation_${index}_description`, annotation.description);
+        metadata.set(
+          `result_annotation_${index}_description`,
+          annotation.description
+        );
       }
     });
 
@@ -361,7 +378,8 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Extract failure details
-    const { errorMessage: failureMessage, stackTrace } = extractErrorInfo(result);
+    const { errorMessage: failureMessage, stackTrace } =
+      extractErrorInfo(result);
 
     // Process attachments for failed tests
     const attachments = processAttachments(result);
@@ -419,23 +437,22 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Generate a unique suite ID based on suite hierarchy
-    const titlePath = suite.titlePath().join('/') || 'root';
+    const titlePath = suite.titlePath().join("/") || "root";
     const suiteId = `${this.runId}-suite-${titlePath}`;
-    
-    // Report the suite begin event
-    this.reportSuiteBegin(suite, suiteId);
-    
+
     // Track that we've reported this suite
     this.reportedSuites.set(suite, suiteId);
-    
+
     return suiteId;
   }
 
   // Helper: Report suite begin event
   private reportSuiteBegin(suite: Suite, suiteId?: string): void {
-    const id = suiteId || `${this.runId}-suite-${suite.title || 'root'}`;
-    
-    console.log(`Stanterprise Reporter: Suite started - ${suite.title || 'root'}`);
+    const id = suiteId || `${this.runId}-suite-${suite.title || "root"}`;
+
+    console.log(
+      `Stanterprise Reporter: Suite started - ${suite.title || "root"}`
+    );
     console.log(`  Suite type: ${suite.type}`);
 
     // Build metadata from suite location
@@ -451,7 +468,7 @@ export default class StanterpriseReporter implements Reporter {
     const request = new events.SuiteBeginEventRequest({
       suite: new entities.TestSuiteRun({
         id: id,
-        name: suite.title || 'root',
+        name: suite.title || "root",
         start_time: createTimestamp(this.runStartTime),
         metadata: metadata,
       }),
@@ -467,11 +484,13 @@ export default class StanterpriseReporter implements Reporter {
 
   // Helper: Report suite end event
   private reportSuiteEnd(suite: Suite, result: FullResult): void {
-    const suiteId = `${this.runId}-suite-${suite.title || 'root'}`;
+    const suiteId = `${this.runId}-suite-${suite.title || "root"}`;
     const endTime = new Date();
     const duration = endTime.getTime() - this.runStartTime.getTime();
 
-    console.log(`Stanterprise Reporter: Suite ended - ${suite.title || 'root'}`);
+    console.log(
+      `Stanterprise Reporter: Suite ended - ${suite.title || "root"}`
+    );
     console.log(`  Duration: ${duration}ms`);
 
     // Map result status to protobuf TestStatus
@@ -491,7 +510,7 @@ export default class StanterpriseReporter implements Reporter {
     const request = new events.SuiteEndEventRequest({
       suite: new entities.TestSuiteRun({
         id: suiteId,
-        name: suite.title || 'root',
+        name: suite.title || "root",
         start_time: createTimestamp(this.runStartTime),
         end_time: createTimestamp(endTime),
         duration: createDuration(duration),
