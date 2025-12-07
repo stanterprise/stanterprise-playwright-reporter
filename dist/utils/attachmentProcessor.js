@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.processAttachments = processAttachments;
 exports.extractErrorInfo = extractErrorInfo;
 const protobuf_1 = require("@stanterprise/protobuf");
+const Attachment = protobuf_1.common.v1.common.Attachment;
 /**
  * Process Playwright test attachments into protobuf Attachment objects
  */
@@ -12,7 +13,7 @@ function processAttachments(result) {
         return attachments;
     }
     for (const attachment of result.attachments) {
-        const att = new protobuf_1.common.Attachment({
+        const att = new Attachment({
             name: attachment.name,
             mime_type: attachment.contentType,
         });

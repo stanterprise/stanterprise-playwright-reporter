@@ -3,26 +3,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.mapTestStatus = mapTestStatus;
 exports.mapStepStatus = mapStepStatus;
 const protobuf_1 = require("@stanterprise/protobuf");
+const TestStatus = protobuf_1.common.v1.common.TestStatus;
 /**
  * Map Playwright test status to protobuf TestStatus
  */
 function mapTestStatus(status) {
     switch (status) {
         case "passed":
-            return protobuf_1.common.TestStatus.PASSED;
+            return TestStatus.PASSED;
         case "failed":
-            return protobuf_1.common.TestStatus.FAILED;
+            return TestStatus.FAILED;
         case "skipped":
-            return protobuf_1.common.TestStatus.SKIPPED;
+            return TestStatus.SKIPPED;
         case "timedOut":
-            return protobuf_1.common.TestStatus.FAILED; // Treat timeout as failed
+            return TestStatus.FAILED; // Treat timeout as failed
         default:
-            return protobuf_1.common.TestStatus.UNKNOWN;
+            return TestStatus.UNKNOWN;
     }
 }
 /**
  * Map step error to test status
  */
 function mapStepStatus(hasError) {
-    return hasError ? protobuf_1.common.TestStatus.FAILED : protobuf_1.common.TestStatus.PASSED;
+    return hasError ? TestStatus.FAILED : TestStatus.PASSED;
 }

@@ -37,6 +37,11 @@ const protobuf_1 = require("@stanterprise/protobuf");
 const grpc = __importStar(require("@grpc/grpc-js"));
 const crypto_1 = require("crypto");
 const utils_1 = require("./utils");
+// Create shortcuts for the protobuf classes
+const EventsNS = protobuf_1.events.v1.events;
+const TestCaseEntities = protobuf_1.testCase.v1.entities;
+const TestSuiteEntities = protobuf_1.testSuite.v1.entities;
+const TestStatus = protobuf_1.common.v1.common.TestStatus;
 class StanterpriseReporter {
     constructor(options = {}) {
         // Generic gRPC client (we call unary methods by path directly).
@@ -81,11 +86,15 @@ class StanterpriseReporter {
             }
         }
         else {
-            console.log("Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false");
+            if (this.verbose) {
+                console.log("Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false");
+            }
         }
-        console.log(`Stanterprise Reporter: Test run started with ID: ${this.runId}`);
-        console.log(`Number of tests: ${suite.allTests().length}`);
-        console.log(`Run started at: ${this.runStartTime.toISOString()}`);
+        if (this.verbose) {
+            console.log(`Stanterprise Reporter: Test run started with ID: ${this.runId}`);
+            console.log(`Number of tests: ${suite.allTests().length}`);
+            console.log(`Run started at: ${this.runStartTime.toISOString()}`);
+        }
         // Report root suite begin and track its ID
         const rootSuiteId = this.getSuiteId(suite);
         // Report the suite begin event
@@ -140,16 +149,15 @@ class StanterpriseReporter {
             }
         });
         // Build and send the TestBegin event via generic unary call.
-        const request = new protobuf_1.events.TestBeginEventRequest({
-            test_case: new protobuf_1.entities.TestCaseRun({
-                id: uniqueTestExecutionId,
-                title: test.title,
+        const request = new EventsNS.TestBeginEventRequest({
+            test_case: new TestCaseEntities.TestCaseRun({
+                id: test.id,
+                name: test.title,
                 run_id: this.runId,
-                test_id: test.id,
                 test_suite_run_id: testSuiteRunId,
                 start_time: (0, utils_1.createTimestamp)(result.startTime),
                 metadata: metadata,
-                actual_tags: test.tags,
+                tags: test.tags,
             }),
         });
         // Fire-and-forget to avoid slowing tests; log errors once.
@@ -174,8 +182,8 @@ class StanterpriseReporter {
             ? `${uniqueTestExecutionId}-${step.parent.title}-${step.parent.startTime.getTime()}`
             : "";
         // Build and send the StepBegin event
-        const request = new protobuf_1.events.StepBeginEventRequest({
-            step: new protobuf_1.entities.StepRun({
+        const request = new EventsNS.StepBeginEventRequest({
+            step: new TestCaseEntities.StepRun({
                 id: uniqueStepId,
                 run_id: this.runId,
                 test_case_run_id: uniqueTestExecutionId,
@@ -214,8 +222,8 @@ class StanterpriseReporter {
             ? `${uniqueTestExecutionId}-${step.parent.title}-${step.parent.startTime.getTime()}`
             : "";
         // Build and send the StepEnd event
-        const request = new protobuf_1.events.StepEndEventRequest({
-            step: new protobuf_1.entities.StepRun({
+        const request = new EventsNS.StepEndEventRequest({
+            step: new TestCaseEntities.StepRun({
                 id: uniqueStepId,
                 run_id: this.runId,
                 test_case_run_id: uniqueTestExecutionId,
@@ -265,12 +273,11 @@ class StanterpriseReporter {
             }
         });
         // Build and send the TestEnd event
-        const request = new protobuf_1.events.TestEndEventRequest({
-            test_case: new protobuf_1.entities.TestCaseRun({
-                id: uniqueTestExecutionId,
-                title: test.title,
+        const request = new EventsNS.TestEndEventRequest({
+            test_case: new TestCaseEntities.TestCaseRun({
+                id: test.id,
+                name: test.title,
                 run_id: this.runId,
-                test_id: test.id,
                 test_suite_run_id: testSuiteRunId,
                 status: testStatus,
                 start_time: (0, utils_1.createTimestamp)(result.startTime),
@@ -279,7 +286,7 @@ class StanterpriseReporter {
                 stack_trace: stackTrace,
                 errors: errors,
                 metadata: metadata,
-                actual_tags: test.tags,
+                tags: test.tags,
             }),
         });
         // Fire-and-forget to avoid slowing tests
@@ -295,7 +302,7 @@ class StanterpriseReporter {
         // Process attachments for failed tests
         const attachments = (0, utils_1.processAttachments)(result);
         // Build and send the TestFailure event
-        const request = new protobuf_1.events.TestFailureEventRequest({
+        const request = new EventsNS.TestFailureEventRequest({
             test_id: uniqueTestExecutionId,
             failure_message: failureMessage,
             stack_trace: stackTrace,
@@ -345,8 +352,8 @@ class StanterpriseReporter {
             metadata.set("location_column", suite.location.column.toString());
         }
         // Build and send the SuiteBegin event
-        const request = new protobuf_1.events.SuiteBeginEventRequest({
-            suite: new protobuf_1.entities.TestSuiteRun({
+        const request = new EventsNS.SuiteBeginEventRequest({
+            suite: new TestSuiteEntities.TestSuiteRun({
                 id: id,
                 name: suite.title || "root",
                 start_time: (0, utils_1.createTimestamp)(this.runStartTime),
@@ -375,8 +382,8 @@ class StanterpriseReporter {
             metadata.set("location_column", suite.location.column.toString());
         }
         // Build and send the SuiteEnd event
-        const request = new protobuf_1.events.SuiteEndEventRequest({
-            suite: new protobuf_1.entities.TestSuiteRun({
+        const request = new EventsNS.SuiteEndEventRequest({
+            suite: new TestSuiteEntities.TestSuiteRun({
                 id: suiteId,
                 name: suite.title || "root",
                 start_time: (0, utils_1.createTimestamp)(this.runStartTime),
@@ -393,15 +400,15 @@ class StanterpriseReporter {
     mapSuiteStatus(status) {
         switch (status) {
             case "passed":
-                return protobuf_1.common.TestStatus.PASSED;
+                return TestStatus.PASSED;
             case "failed":
-                return protobuf_1.common.TestStatus.FAILED;
+                return TestStatus.FAILED;
             case "timedout":
-                return protobuf_1.common.TestStatus.FAILED;
+                return TestStatus.FAILED;
             case "interrupted":
-                return protobuf_1.common.TestStatus.BROKEN;
+                return TestStatus.BROKEN;
             default:
-                return protobuf_1.common.TestStatus.UNKNOWN;
+                return TestStatus.UNKNOWN;
         }
     }
     // Helper: log first gRPC error once and disable further attempts
