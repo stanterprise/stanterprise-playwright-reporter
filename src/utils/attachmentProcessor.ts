@@ -4,20 +4,22 @@
 import type { TestResult } from "@playwright/test/reporter";
 import { common } from "@stanterprise/protobuf";
 
+const Attachment = common.v1.common.Attachment;
+
 /**
  * Process Playwright test attachments into protobuf Attachment objects
  */
 export function processAttachments(
   result: TestResult
-): InstanceType<typeof common.Attachment>[] {
-  const attachments: InstanceType<typeof common.Attachment>[] = [];
+): InstanceType<typeof Attachment>[] {
+  const attachments: InstanceType<typeof Attachment>[] = [];
 
   if (!result.attachments || result.attachments.length === 0) {
     return attachments;
   }
 
   for (const attachment of result.attachments) {
-    const att = new common.Attachment({
+    const att = new Attachment({
       name: attachment.name,
       mime_type: attachment.contentType,
     });

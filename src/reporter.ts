@@ -8,7 +8,7 @@ import type {
   TestStep,
   TestError,
 } from "@playwright/test/reporter";
-import { testsystem } from "@stanterprise/protobuf";
+import { events, testCase, testSuite, common } from "@stanterprise/protobuf";
 import * as grpc from "@grpc/grpc-js";
 import { randomUUID } from "crypto";
 import { StanterpriseReporterOptions } from "./types";
@@ -21,6 +21,12 @@ import {
   createTimestampFromMs,
   createDuration,
 } from "./utils";
+
+// Create shortcuts for the protobuf classes
+const EventsNS = events.v1.events;
+const TestCaseEntities = testCase.v1.entities;
+const TestSuiteEntities = testSuite.v1.entities;
+const TestStatus = common.v1.common.TestStatus;
 
 export default class StanterpriseReporter implements Reporter {
   // Generic gRPC client (we call unary methods by path directly).
@@ -76,17 +82,19 @@ export default class StanterpriseReporter implements Reporter {
         this.logGrpcErrorOnce("Failed to create gRPC client", e);
       }
     } else {
-      console.log(
-        "Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false"
-      );
+      if (this.verbose) {
+        console.log(
+          "Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false"
+        );
+      }
     }
-
-    console.log(
-      `Stanterprise Reporter: Test run started with ID: ${this.runId}`
-    );
-    console.log(`Number of tests: ${suite.allTests().length}`);
-    console.log(`Run started at: ${this.runStartTime.toISOString()}`);
-
+    if (this.verbose) {
+      console.log(
+        `Stanterprise Reporter: Test run started with ID: ${this.runId}`
+      );
+      console.log(`Number of tests: ${suite.allTests().length}`);
+      console.log(`Run started at: ${this.runStartTime.toISOString()}`);
+    }
     // Report root suite begin and track its ID
     const rootSuiteId = this.getSuiteId(suite);
 
@@ -164,16 +172,15 @@ export default class StanterpriseReporter implements Reporter {
     });
 
     // Build and send the TestBegin event via generic unary call.
-    const request = new testsystem.v1.events.TestBeginEventRequest({
-      test_case: new testsystem.v1.entities.TestCaseRun({
-        id: uniqueTestExecutionId,
-        title: test.title,
+    const request = new EventsNS.TestBeginEventRequest({
+      test_case: new TestCaseEntities.TestCaseRun({
+        id: test.id,
+        name: test.title,
         run_id: this.runId,
-        test_id: test.id,
         test_suite_run_id: testSuiteRunId,
         start_time: createTimestamp(result.startTime),
         metadata: metadata,
-        actual_tags: test.tags,
+        tags: test.tags,
       }),
     });
 
@@ -216,8 +223,8 @@ export default class StanterpriseReporter implements Reporter {
       : "";
 
     // Build and send the StepBegin event
-    const request = new testsystem.v1.events.StepBeginEventRequest({
-      step: new testsystem.v1.entities.StepRun({
+    const request = new EventsNS.StepBeginEventRequest({
+      step: new TestCaseEntities.StepRun({
         id: uniqueStepId,
         run_id: this.runId,
         test_case_run_id: uniqueTestExecutionId,
@@ -271,8 +278,8 @@ export default class StanterpriseReporter implements Reporter {
       : "";
 
     // Build and send the StepEnd event
-    const request = new testsystem.v1.events.StepEndEventRequest({
-      step: new testsystem.v1.entities.StepRun({
+    const request = new EventsNS.StepEndEventRequest({
+      step: new TestCaseEntities.StepRun({
         id: uniqueStepId,
         run_id: this.runId,
         test_case_run_id: uniqueTestExecutionId,
@@ -338,12 +345,11 @@ export default class StanterpriseReporter implements Reporter {
     });
 
     // Build and send the TestEnd event
-    const request = new testsystem.v1.events.TestEndEventRequest({
-      test_case: new testsystem.v1.entities.TestCaseRun({
-        id: uniqueTestExecutionId,
-        title: test.title,
+    const request = new EventsNS.TestEndEventRequest({
+      test_case: new TestCaseEntities.TestCaseRun({
+        id: test.id,
+        name: test.title,
         run_id: this.runId,
-        test_id: test.id,
         test_suite_run_id: testSuiteRunId,
         status: testStatus,
         start_time: createTimestamp(result.startTime),
@@ -352,7 +358,7 @@ export default class StanterpriseReporter implements Reporter {
         stack_trace: stackTrace,
         errors: errors,
         metadata: metadata,
-        actual_tags: test.tags,
+        tags: test.tags,
       }),
     });
 
@@ -379,7 +385,7 @@ export default class StanterpriseReporter implements Reporter {
     const attachments = processAttachments(result);
 
     // Build and send the TestFailure event
-    const request = new testsystem.v1.events.TestFailureEventRequest({
+    const request = new EventsNS.TestFailureEventRequest({
       test_id: uniqueTestExecutionId,
       failure_message: failureMessage,
       stack_trace: stackTrace,
@@ -459,8 +465,8 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Build and send the SuiteBegin event
-    const request = new testsystem.v1.events.SuiteBeginEventRequest({
-      suite: new testsystem.v1.entities.TestSuiteRun({
+    const request = new EventsNS.SuiteBeginEventRequest({
+      suite: new TestSuiteEntities.TestSuiteRun({
         id: id,
         name: suite.title || "root",
         start_time: createTimestamp(this.runStartTime),
@@ -501,8 +507,8 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Build and send the SuiteEnd event
-    const request = new testsystem.v1.events.SuiteEndEventRequest({
-      suite: new testsystem.v1.entities.TestSuiteRun({
+    const request = new EventsNS.SuiteEndEventRequest({
+      suite: new TestSuiteEntities.TestSuiteRun({
         id: suiteId,
         name: suite.title || "root",
         start_time: createTimestamp(this.runStartTime),
@@ -525,15 +531,15 @@ export default class StanterpriseReporter implements Reporter {
   private mapSuiteStatus(status: FullResult["status"]): number {
     switch (status) {
       case "passed":
-        return testsystem.v1.common.TestStatus.PASSED;
+        return TestStatus.PASSED;
       case "failed":
-        return testsystem.v1.common.TestStatus.FAILED;
+        return TestStatus.FAILED;
       case "timedout":
-        return testsystem.v1.common.TestStatus.FAILED;
+        return TestStatus.FAILED;
       case "interrupted":
-        return testsystem.v1.common.TestStatus.BROKEN;
+        return TestStatus.BROKEN;
       default:
-        return testsystem.v1.common.TestStatus.UNKNOWN;
+        return TestStatus.UNKNOWN;
     }
   }
 
