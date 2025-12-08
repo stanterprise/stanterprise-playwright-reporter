@@ -4,21 +4,23 @@
 import type { TestResult } from "@playwright/test/reporter";
 import { common } from "@stanterprise/protobuf";
 
+const TestStatus = common.v1.common.TestStatus;
+
 /**
  * Map Playwright test status to protobuf TestStatus
  */
 export function mapTestStatus(status: TestResult["status"]): number {
   switch (status) {
     case "passed":
-      return common.TestStatus.PASSED;
+      return TestStatus.PASSED;
     case "failed":
-      return common.TestStatus.FAILED;
+      return TestStatus.FAILED;
     case "skipped":
-      return common.TestStatus.SKIPPED;
+      return TestStatus.SKIPPED;
     case "timedOut":
-      return common.TestStatus.FAILED; // Treat timeout as failed
+      return TestStatus.FAILED; // Treat timeout as failed
     default:
-      return common.TestStatus.UNKNOWN;
+      return TestStatus.UNKNOWN;
   }
 }
 
@@ -26,5 +28,5 @@ export function mapTestStatus(status: TestResult["status"]): number {
  * Map step error to test status
  */
 export function mapStepStatus(hasError: boolean): number {
-  return hasError ? common.TestStatus.FAILED : common.TestStatus.PASSED;
+  return hasError ? TestStatus.FAILED : TestStatus.PASSED;
 }

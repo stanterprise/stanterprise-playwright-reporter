@@ -8,13 +8,7 @@ import type {
   TestStep,
   TestError,
 } from "@playwright/test/reporter";
-import {
-  google,
-  testsystem,
-  events,
-  common,
-  entities,
-} from "@stanterprise/protobuf";
+import { events, testCase, testSuite, common } from "@stanterprise/protobuf";
 import * as grpc from "@grpc/grpc-js";
 import { randomUUID } from "crypto";
 import { StanterpriseReporterOptions } from "./types";
@@ -27,6 +21,12 @@ import {
   createTimestampFromMs,
   createDuration,
 } from "./utils";
+
+// Create shortcuts for the protobuf classes
+const EventsNS = events.v1.events;
+const TestCaseEntities = testCase.v1.entities;
+const TestSuiteEntities = testSuite.v1.entities;
+const TestStatus = common.v1.common.TestStatus;
 
 export default class StanterpriseReporter implements Reporter {
   // Generic gRPC client (we call unary methods by path directly).
@@ -82,19 +82,24 @@ export default class StanterpriseReporter implements Reporter {
         this.logGrpcErrorOnce("Failed to create gRPC client", e);
       }
     } else {
-      console.log(
-        "Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false"
-      );
+      if (this.verbose) {
+        console.log(
+          "Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false"
+        );
+      }
     }
-
-    console.log(
-      `Stanterprise Reporter: Test run started with ID: ${this.runId}`
-    );
-    console.log(`Number of tests: ${suite.allTests().length}`);
-    console.log(`Run started at: ${this.runStartTime.toISOString()}`);
-    
+    if (this.verbose) {
+      console.log(
+        `Stanterprise Reporter: Test run started with ID: ${this.runId}`
+      );
+      console.log(`Number of tests: ${suite.allTests().length}`);
+      console.log(`Run started at: ${this.runStartTime.toISOString()}`);
+    }
     // Report root suite begin and track its ID
     const rootSuiteId = this.getSuiteId(suite);
+
+    // Report the suite begin event
+    this.reportSuiteBegin(suite, rootSuiteId);
   }
 
   async onExit(): Promise<void> {
@@ -105,7 +110,10 @@ export default class StanterpriseReporter implements Reporter {
     try {
       this.grpcClient?.close();
     } catch (e) {
-      console.error("Stanterprise Reporter: Error during gRPC client cleanup in onExit:", e);
+      console.error(
+        "Stanterprise Reporter: Error during gRPC client cleanup in onExit:",
+        e
+      );
     }
   }
 
@@ -164,16 +172,15 @@ export default class StanterpriseReporter implements Reporter {
     });
 
     // Build and send the TestBegin event via generic unary call.
-    const request = new events.TestBeginEventRequest({
-      test_case: new entities.TestCaseRun({
-        id: uniqueTestExecutionId,
-        title: test.title,
+    const request = new EventsNS.TestBeginEventRequest({
+      test_case: new TestCaseEntities.TestCaseRun({
+        id: test.id,
+        name: test.title,
         run_id: this.runId,
-        test_id: test.id,
         test_suite_run_id: testSuiteRunId,
         start_time: createTimestamp(result.startTime),
         metadata: metadata,
-        actual_tags: test.tags,
+        tags: test.tags,
       }),
     });
 
@@ -191,7 +198,9 @@ export default class StanterpriseReporter implements Reporter {
     step: TestStep
   ): Promise<void> {
     const uniqueTestExecutionId = `${this.runId}-${test.id}`;
-    const uniqueStepId = `${uniqueTestExecutionId}-${step.title}-${step.startTime.getTime()}`;
+    const uniqueStepId = `${uniqueTestExecutionId}-${
+      step.title
+    }-${step.startTime.getTime()}`;
 
     console.log(`Stanterprise Reporter: Step started - ${step.title}`);
     console.log(`  Category: ${step.category}`);
@@ -208,12 +217,14 @@ export default class StanterpriseReporter implements Reporter {
 
     // Get parent step ID if this step has a parent
     const parentStepId = step.parent
-      ? `${uniqueTestExecutionId}-${step.parent.title}-${step.parent.startTime.getTime()}`
+      ? `${uniqueTestExecutionId}-${
+          step.parent.title
+        }-${step.parent.startTime.getTime()}`
       : "";
 
     // Build and send the StepBegin event
-    const request = new events.StepBeginEventRequest({
-      step: new entities.StepRun({
+    const request = new EventsNS.StepBeginEventRequest({
+      step: new TestCaseEntities.StepRun({
         id: uniqueStepId,
         run_id: this.runId,
         test_case_run_id: uniqueTestExecutionId,
@@ -239,7 +250,9 @@ export default class StanterpriseReporter implements Reporter {
 
   onStepEnd(test: TestCase, result: TestResult, step: TestStep): void {
     const uniqueTestExecutionId = `${this.runId}-${test.id}`;
-    const uniqueStepId = `${uniqueTestExecutionId}-${step.title}-${step.startTime.getTime()}`;
+    const uniqueStepId = `${uniqueTestExecutionId}-${
+      step.title
+    }-${step.startTime.getTime()}`;
 
     console.log(`Stanterprise Reporter: Step ended - ${step.title}`);
     console.log(`  Duration: ${step.duration}ms`);
@@ -259,12 +272,14 @@ export default class StanterpriseReporter implements Reporter {
 
     // Get parent step ID if this step has a parent
     const parentStepId = step.parent
-      ? `${uniqueTestExecutionId}-${step.parent.title}-${step.parent.startTime.getTime()}`
+      ? `${uniqueTestExecutionId}-${
+          step.parent.title
+        }-${step.parent.startTime.getTime()}`
       : "";
 
     // Build and send the StepEnd event
-    const request = new events.StepEndEventRequest({
-      step: new entities.StepRun({
+    const request = new EventsNS.StepEndEventRequest({
+      step: new TestCaseEntities.StepRun({
         id: uniqueStepId,
         run_id: this.runId,
         test_case_run_id: uniqueTestExecutionId,
@@ -322,17 +337,19 @@ export default class StanterpriseReporter implements Reporter {
     result.annotations.forEach((annotation, index) => {
       metadata.set(`result_annotation_${index}_type`, annotation.type);
       if (annotation.description) {
-        metadata.set(`result_annotation_${index}_description`, annotation.description);
+        metadata.set(
+          `result_annotation_${index}_description`,
+          annotation.description
+        );
       }
     });
 
     // Build and send the TestEnd event
-    const request = new events.TestEndEventRequest({
-      test_case: new entities.TestCaseRun({
-        id: uniqueTestExecutionId,
-        title: test.title,
+    const request = new EventsNS.TestEndEventRequest({
+      test_case: new TestCaseEntities.TestCaseRun({
+        id: test.id,
+        name: test.title,
         run_id: this.runId,
-        test_id: test.id,
         test_suite_run_id: testSuiteRunId,
         status: testStatus,
         start_time: createTimestamp(result.startTime),
@@ -341,7 +358,7 @@ export default class StanterpriseReporter implements Reporter {
         stack_trace: stackTrace,
         errors: errors,
         metadata: metadata,
-        actual_tags: test.tags,
+        tags: test.tags,
       }),
     });
 
@@ -361,13 +378,14 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Extract failure details
-    const { errorMessage: failureMessage, stackTrace } = extractErrorInfo(result);
+    const { errorMessage: failureMessage, stackTrace } =
+      extractErrorInfo(result);
 
     // Process attachments for failed tests
     const attachments = processAttachments(result);
 
     // Build and send the TestFailure event
-    const request = new events.TestFailureEventRequest({
+    const request = new EventsNS.TestFailureEventRequest({
       test_id: uniqueTestExecutionId,
       failure_message: failureMessage,
       stack_trace: stackTrace,
@@ -419,23 +437,22 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Generate a unique suite ID based on suite hierarchy
-    const titlePath = suite.titlePath().join('/') || 'root';
+    const titlePath = suite.titlePath().join("/") || "root";
     const suiteId = `${this.runId}-suite-${titlePath}`;
-    
-    // Report the suite begin event
-    this.reportSuiteBegin(suite, suiteId);
-    
+
     // Track that we've reported this suite
     this.reportedSuites.set(suite, suiteId);
-    
+
     return suiteId;
   }
 
   // Helper: Report suite begin event
   private reportSuiteBegin(suite: Suite, suiteId?: string): void {
-    const id = suiteId || `${this.runId}-suite-${suite.title || 'root'}`;
-    
-    console.log(`Stanterprise Reporter: Suite started - ${suite.title || 'root'}`);
+    const id = suiteId || `${this.runId}-suite-${suite.title || "root"}`;
+
+    console.log(
+      `Stanterprise Reporter: Suite started - ${suite.title || "root"}`
+    );
     console.log(`  Suite type: ${suite.type}`);
 
     // Build metadata from suite location
@@ -448,10 +465,10 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Build and send the SuiteBegin event
-    const request = new events.SuiteBeginEventRequest({
-      suite: new entities.TestSuiteRun({
+    const request = new EventsNS.SuiteBeginEventRequest({
+      suite: new TestSuiteEntities.TestSuiteRun({
         id: id,
-        name: suite.title || 'root',
+        name: suite.title || "root",
         start_time: createTimestamp(this.runStartTime),
         metadata: metadata,
       }),
@@ -467,11 +484,13 @@ export default class StanterpriseReporter implements Reporter {
 
   // Helper: Report suite end event
   private reportSuiteEnd(suite: Suite, result: FullResult): void {
-    const suiteId = `${this.runId}-suite-${suite.title || 'root'}`;
+    const suiteId = `${this.runId}-suite-${suite.title || "root"}`;
     const endTime = new Date();
     const duration = endTime.getTime() - this.runStartTime.getTime();
 
-    console.log(`Stanterprise Reporter: Suite ended - ${suite.title || 'root'}`);
+    console.log(
+      `Stanterprise Reporter: Suite ended - ${suite.title || "root"}`
+    );
     console.log(`  Duration: ${duration}ms`);
 
     // Map result status to protobuf TestStatus
@@ -488,10 +507,10 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Build and send the SuiteEnd event
-    const request = new events.SuiteEndEventRequest({
-      suite: new entities.TestSuiteRun({
+    const request = new EventsNS.SuiteEndEventRequest({
+      suite: new TestSuiteEntities.TestSuiteRun({
         id: suiteId,
-        name: suite.title || 'root',
+        name: suite.title || "root",
         start_time: createTimestamp(this.runStartTime),
         end_time: createTimestamp(endTime),
         duration: createDuration(duration),
@@ -512,15 +531,15 @@ export default class StanterpriseReporter implements Reporter {
   private mapSuiteStatus(status: FullResult["status"]): number {
     switch (status) {
       case "passed":
-        return common.TestStatus.PASSED;
+        return TestStatus.PASSED;
       case "failed":
-        return common.TestStatus.FAILED;
+        return TestStatus.FAILED;
       case "timedout":
-        return common.TestStatus.FAILED;
+        return TestStatus.FAILED;
       case "interrupted":
-        return common.TestStatus.BROKEN;
+        return TestStatus.BROKEN;
       default:
-        return common.TestStatus.UNKNOWN;
+        return TestStatus.UNKNOWN;
     }
   }
 
