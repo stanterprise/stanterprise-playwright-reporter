@@ -130,7 +130,7 @@ out
 
 # TypeScript
 *.tsbuildinfo
-# dist/
+dist/
 lib/
 build/
 
