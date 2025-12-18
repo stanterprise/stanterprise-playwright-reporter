@@ -494,13 +494,17 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Generate a unique suite ID based on full hierarchy path
+    // Note: Unlike TestCase which has a built-in 'id' property, Suite does not.
+    // We generate an ID from titlePath() which uniquely identifies the suite within the test structure.
+    // The run_id is sent separately in the protobuf message to associate the suite with a specific test run.
     // titlePath() returns array like: ['', 'Parent Suite', 'Child Suite']
     const titlePath = suite.titlePath().filter((t) => t).join("/") || "root";
 
     // Sanitize path to be URL-safe
     const sanitizedPath = titlePath.replace(/[^a-zA-Z0-9-_\/]/g, "-");
 
-    const suiteId = `${this.runId}-suite-${sanitizedPath}`;
+    // Suite ID without runId prefix (run_id is sent separately in protobuf)
+    const suiteId = `suite-${sanitizedPath}`;
 
     // Store the mapping
     this.reportedSuites.set(suite, suiteId);
