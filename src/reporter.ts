@@ -442,8 +442,11 @@ export default class StanterpriseReporter implements Reporter {
 
     // Log hierarchy with indentation in verbose mode
     if (this.verbose) {
-      const depth = suite.titlePath().filter((t) => t).length - 1;
-      const indent = "  ".repeat(Math.max(0, depth));
+      // Calculate depth: filter out empty titles and subtract 1 for zero-based depth
+      // Root suite with empty title will have depth 0 after filtering
+      const titlePathFiltered = suite.titlePath().filter((t) => t);
+      const depth = Math.max(0, titlePathFiltered.length - 1);
+      const indent = "  ".repeat(depth);
       console.log(`${indent}Suite begin: ${suite.title || "root"}`);
     }
 
@@ -471,8 +474,11 @@ export default class StanterpriseReporter implements Reporter {
 
     // Log hierarchy with indentation in verbose mode
     if (this.verbose) {
-      const depth = suite.titlePath().filter((t) => t).length - 1;
-      const indent = "  ".repeat(Math.max(0, depth));
+      // Calculate depth: filter out empty titles and subtract 1 for zero-based depth
+      // Root suite with empty title will have depth 0 after filtering
+      const titlePathFiltered = suite.titlePath().filter((t) => t);
+      const depth = Math.max(0, titlePathFiltered.length - 1);
+      const indent = "  ".repeat(depth);
       console.log(`${indent}Suite end: ${suite.title || "root"}`);
     }
 
