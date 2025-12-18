@@ -43,6 +43,8 @@ export default class StanterpriseReporter implements Reporter {
   private rootSuite: Suite | null = null;
   // Track reported suites to ensure we only report each suite once and can reference correct IDs
   private reportedSuites: Map<Suite, string> = new Map();
+  // Track suite start times for accurate duration calculation
+  private suiteTimes: Map<Suite, Date> = new Map();
 
   constructor(options: StanterpriseReporterOptions = {}) {
     this.grpcAddress =
@@ -71,6 +73,10 @@ export default class StanterpriseReporter implements Reporter {
     this.runId = randomUUID();
     this.rootSuite = suite;
 
+    // Clear Maps from any previous test runs to prevent memory leaks
+    this.reportedSuites.clear();
+    this.suiteTimes.clear();
+
     // Lazily create the client if enabled.
     if (this.grpcEnabled) {
       try {
@@ -95,11 +101,8 @@ export default class StanterpriseReporter implements Reporter {
       console.log(`Number of tests: ${suite.allTests().length}`);
       console.log(`Run started at: ${this.runStartTime.toISOString()}`);
     }
-    // Report root suite begin and track its ID
-    const rootSuiteId = this.getSuiteId(suite);
-
-    // Report the suite begin event
-    this.reportSuiteBegin(suite, rootSuiteId);
+    // Report root suite and all child suites recursively
+    this.reportSuiteTreeBegin(suite);
   }
 
   async onExit(): Promise<void> {
@@ -142,9 +145,9 @@ export default class StanterpriseReporter implements Reporter {
     console.log(`Run start time: ${this.runStartTime.toISOString()}`);
     console.log(`Playwright start time: ${result.startTime.toISOString()}`);
 
-    // Report root suite end
+    // Report all suites end (from leaves to root)
     if (this.rootSuite) {
-      this.reportSuiteEnd(this.rootSuite, result);
+      this.reportSuiteTreeEnd(this.rootSuite, result);
     }
 
     return Promise.resolve();
@@ -429,27 +432,112 @@ export default class StanterpriseReporter implements Reporter {
     // console.log(`Stanterprise Reporter: Standard output - ${chunk.toString()}`);
   }
 
+  /**
+   * Calculate the nesting depth of a suite by counting parent relationships.
+   * This provides accurate depth regardless of empty titles in the hierarchy.
+   */
+  private calculateSuiteDepth(suite: Suite): number {
+    let depth = 0;
+    let current = suite.parent;
+    while (current) {
+      depth++;
+      current = current.parent;
+    }
+    return depth;
+  }
+
+  /**
+   * Recursively report suite begin for a suite and all its children
+   */
+  private reportSuiteTreeBegin(suite: Suite): void {
+    // Track suite start time
+    const startTime = new Date();
+    this.suiteTimes.set(suite, startTime);
+
+    // Report this suite's begin
+    const suiteId = this.getSuiteId(suite);
+    this.reportSuiteBegin(suite, suiteId, startTime);
+
+    // Log hierarchy with indentation in verbose mode
+    if (this.verbose) {
+      const depth = this.calculateSuiteDepth(suite);
+      const indent = "  ".repeat(depth);
+      console.log(`${indent}Suite begin: ${suite.title || "root"}`);
+    }
+
+    // Recursively report child suites
+    if (suite.suites && suite.suites.length > 0) {
+      for (const childSuite of suite.suites) {
+        this.reportSuiteTreeBegin(childSuite);
+      }
+    }
+  }
+
+  /**
+   * Recursively report suite end for a suite and all its children (in reverse order)
+   */
+  private reportSuiteTreeEnd(suite: Suite, result: FullResult): void {
+    // First, recursively report child suites end (children before parent)
+    if (suite.suites && suite.suites.length > 0) {
+      for (const childSuite of suite.suites) {
+        this.reportSuiteTreeEnd(childSuite, result);
+      }
+    }
+
+    // Get suite start time
+    let startTime = this.suiteTimes.get(suite);
+    if (!startTime) {
+      // If we don't have a recorded start time for this suite, fall back to the
+      // overall run start time but log a warning so timing issues can be diagnosed.
+      const suitePath = suite.titlePath().filter((t) => t).join(" > ") || suite.title || "root";
+      console.warn(
+        `Stanterprise Reporter: Missing start time for suite "${suitePath}". ` +
+          `Falling back to run start time for duration calculation.`
+      );
+      startTime = this.runStartTime;
+    }
+
+    // Log hierarchy with indentation in verbose mode
+    if (this.verbose) {
+      const depth = this.calculateSuiteDepth(suite);
+      const indent = "  ".repeat(depth);
+      console.log(`${indent}Suite end: ${suite.title || "root"}`);
+    }
+
+    // Then report this suite's end
+    this.reportSuiteEnd(suite, result, startTime);
+  }
+
   // Helper: Get suite ID for a suite, ensuring it's been reported
   private getSuiteId(suite: Suite): string {
-    // Check if we've already reported this suite
+    // Check if we've already generated an ID for this suite
     if (this.reportedSuites.has(suite)) {
       return this.reportedSuites.get(suite)!;
     }
 
-    // Generate a unique suite ID based on suite hierarchy
-    const titlePath = suite.titlePath().join("/") || "root";
-    const suiteId = `${this.runId}-suite-${titlePath}`;
+    // Generate a unique suite ID based on full hierarchy path
+    // Note: Unlike TestCase which has a built-in 'id' property, Suite does not.
+    // We generate an ID from titlePath() which uniquely identifies the suite within the test structure.
+    // The run_id is sent separately in the protobuf message to associate the suite with a specific test run.
+    // titlePath() returns array like: ['', 'Parent Suite', 'Child Suite']
+    const titlePath = suite.titlePath().filter((t) => t).join("/") || "root";
 
-    // Track that we've reported this suite
+    // Sanitize path to be URL-safe
+    // We replace ALL special characters including forward slashes to avoid collisions
+    // (e.g., suite named "A/B" vs path "A" -> "B" should not collide)
+    const sanitizedPath = titlePath.replace(/[^a-zA-Z0-9-_]/g, "-");
+
+    // Suite ID without runId prefix (run_id is sent separately in protobuf)
+    const suiteId = `suite-${sanitizedPath}`;
+
+    // Store the mapping
     this.reportedSuites.set(suite, suiteId);
 
     return suiteId;
   }
 
   // Helper: Report suite begin event
-  private reportSuiteBegin(suite: Suite, suiteId?: string): void {
-    const id = suiteId || `${this.runId}-suite-${suite.title || "root"}`;
-
+  private reportSuiteBegin(suite: Suite, suiteId: string, startTime: Date): void {
     console.log(
       `Stanterprise Reporter: Suite started - ${suite.title || "root"}`
     );
@@ -467,10 +555,13 @@ export default class StanterpriseReporter implements Reporter {
     // Build and send the SuiteBegin event
     const request = new EventsNS.SuiteBeginEventRequest({
       suite: new TestSuiteEntities.TestSuiteRun({
-        id: id,
+        id: suiteId,
         name: suite.title || "root",
-        start_time: createTimestamp(this.runStartTime),
+        run_id: this.runId,
+        start_time: createTimestamp(startTime),
         metadata: metadata,
+        // Add parent suite ID if not root
+        parent_suite_id: suite.parent ? this.getSuiteId(suite.parent) : "",
       }),
     });
 
@@ -483,10 +574,10 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   // Helper: Report suite end event
-  private reportSuiteEnd(suite: Suite, result: FullResult): void {
-    const suiteId = `${this.runId}-suite-${suite.title || "root"}`;
+  private reportSuiteEnd(suite: Suite, result: FullResult, startTime: Date): void {
+    const suiteId = this.getSuiteId(suite);
     const endTime = new Date();
-    const duration = endTime.getTime() - this.runStartTime.getTime();
+    const duration = endTime.getTime() - startTime.getTime();
 
     console.log(
       `Stanterprise Reporter: Suite ended - ${suite.title || "root"}`
@@ -511,11 +602,14 @@ export default class StanterpriseReporter implements Reporter {
       suite: new TestSuiteEntities.TestSuiteRun({
         id: suiteId,
         name: suite.title || "root",
-        start_time: createTimestamp(this.runStartTime),
+        run_id: this.runId,
+        start_time: createTimestamp(startTime),
         end_time: createTimestamp(endTime),
         duration: createDuration(duration),
         status: suiteStatus,
         metadata: metadata,
+        // Add parent suite ID if not root
+        parent_suite_id: suite.parent ? this.getSuiteId(suite.parent) : "",
       }),
     });
 
