@@ -73,6 +73,10 @@ export default class StanterpriseReporter implements Reporter {
     this.runId = randomUUID();
     this.rootSuite = suite;
 
+    // Clear Maps from any previous test runs to prevent memory leaks
+    this.reportedSuites.clear();
+    this.suiteTimes.clear();
+
     // Lazily create the client if enabled.
     if (this.grpcEnabled) {
       try {
@@ -429,6 +433,20 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   /**
+   * Calculate the nesting depth of a suite by counting parent relationships.
+   * This provides accurate depth regardless of empty titles in the hierarchy.
+   */
+  private calculateSuiteDepth(suite: Suite): number {
+    let depth = 0;
+    let current = suite.parent;
+    while (current) {
+      depth++;
+      current = current.parent;
+    }
+    return depth;
+  }
+
+  /**
    * Recursively report suite begin for a suite and all its children
    */
   private reportSuiteTreeBegin(suite: Suite): void {
@@ -442,10 +460,7 @@ export default class StanterpriseReporter implements Reporter {
 
     // Log hierarchy with indentation in verbose mode
     if (this.verbose) {
-      // Calculate depth: filter out empty titles and subtract 1 for zero-based depth
-      // Root suite with empty title will have depth 0 after filtering
-      const titlePathFiltered = suite.titlePath().filter((t) => t);
-      const depth = Math.max(0, titlePathFiltered.length - 1);
+      const depth = this.calculateSuiteDepth(suite);
       const indent = "  ".repeat(depth);
       console.log(`${indent}Suite begin: ${suite.title || "root"}`);
     }
@@ -470,14 +485,21 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Get suite start time
-    const startTime = this.suiteTimes.get(suite) || this.runStartTime;
+    let startTime = this.suiteTimes.get(suite);
+    if (!startTime) {
+      // If we don't have a recorded start time for this suite, fall back to the
+      // overall run start time but log a warning so timing issues can be diagnosed.
+      const suitePath = suite.titlePath().filter((t) => t).join(" > ") || suite.title || "root";
+      console.warn(
+        `Stanterprise Reporter: Missing start time for suite "${suitePath}". ` +
+          `Falling back to run start time for duration calculation.`
+      );
+      startTime = this.runStartTime;
+    }
 
     // Log hierarchy with indentation in verbose mode
     if (this.verbose) {
-      // Calculate depth: filter out empty titles and subtract 1 for zero-based depth
-      // Root suite with empty title will have depth 0 after filtering
-      const titlePathFiltered = suite.titlePath().filter((t) => t);
-      const depth = Math.max(0, titlePathFiltered.length - 1);
+      const depth = this.calculateSuiteDepth(suite);
       const indent = "  ".repeat(depth);
       console.log(`${indent}Suite end: ${suite.title || "root"}`);
     }
@@ -501,7 +523,9 @@ export default class StanterpriseReporter implements Reporter {
     const titlePath = suite.titlePath().filter((t) => t).join("/") || "root";
 
     // Sanitize path to be URL-safe
-    const sanitizedPath = titlePath.replace(/[^a-zA-Z0-9-_\/]/g, "-");
+    // We replace ALL special characters including forward slashes to avoid collisions
+    // (e.g., suite named "A/B" vs path "A" -> "B" should not collide)
+    const sanitizedPath = titlePath.replace(/[^a-zA-Z0-9-_]/g, "-");
 
     // Suite ID without runId prefix (run_id is sent separately in protobuf)
     const suiteId = `suite-${sanitizedPath}`;
