@@ -529,6 +529,7 @@ export default class StanterpriseReporter implements Reporter {
       suite: new TestSuiteEntities.TestSuiteRun({
         id: suiteId,
         name: suite.title || "root",
+        run_id: this.runId,
         start_time: createTimestamp(startTime),
         metadata: metadata,
         // Add parent suite ID if not root
@@ -573,6 +574,7 @@ export default class StanterpriseReporter implements Reporter {
       suite: new TestSuiteEntities.TestSuiteRun({
         id: suiteId,
         name: suite.title || "root",
+        run_id: this.runId,
         start_time: createTimestamp(startTime),
         end_time: createTimestamp(endTime),
         duration: createDuration(duration),
