@@ -1,10 +1,10 @@
 # GitHub Copilot Custom Agents
 
-This directory contains custom GitHub Copilot agents specialized for different aspects of the Stanterprise Playwright Reporter project.
+This overview documents the custom GitHub Copilot agents configured in the `.github/agents/` directory for the Stanterprise Playwright Reporter project.
 
 ## Available Agents
 
-### 1. TypeScript Specialist (`typescript-specialist.md`)
+### 1. TypeScript Specialist (`typescript-specialist.agent.md`)
 Expert in TypeScript development with deep knowledge of type systems, modern TypeScript features, and best practices for type-safe code.
 
 **Use for:**
@@ -14,7 +14,7 @@ Expert in TypeScript development with deep knowledge of type systems, modern Typ
 - TypeScript configuration
 - Type safety improvements
 
-### 2. Testing Specialist (`testing-specialist.md`)
+### 2. Testing Specialist (`testing-specialist.agent.md`)
 Expert in testing strategies, Jest configuration, and test-driven development with focus on Playwright reporter testing patterns.
 
 **Use for:**
@@ -24,7 +24,7 @@ Expert in testing strategies, Jest configuration, and test-driven development wi
 - Test coverage improvements
 - Testing error scenarios
 
-### 3. Documentation Specialist (`documentation-specialist.md`)
+### 3. Documentation Specialist (`documentation-specialist.agent.md`)
 Expert in creating clear, comprehensive documentation including README files, API docs, code comments, and usage examples.
 
 **Use for:**
@@ -34,7 +34,7 @@ Expert in creating clear, comprehensive documentation including README files, AP
 - JSDoc comments
 - Configuration guides
 
-### 4. Playwright Specialist (`playwright-specialist.md`)
+### 4. Playwright Specialist (`playwright-specialist.agent.md`)
 Expert in Playwright test automation framework, especially the Reporter API, test lifecycle management, and result processing.
 
 **Use for:**
@@ -44,7 +44,7 @@ Expert in Playwright test automation framework, especially the Reporter API, tes
 - Attachment handling
 - Playwright-specific features
 
-### 5. gRPC Specialist (`grpc-specialist.md`)
+### 5. gRPC Specialist (`grpc-specialist.agent.md`)
 Expert in gRPC protocol, protobuf integration, client configuration, and error handling for distributed systems communication.
 
 **Use for:**
@@ -54,7 +54,7 @@ Expert in gRPC protocol, protobuf integration, client configuration, and error h
 - Error handling for gRPC calls
 - Performance optimization
 
-### 6. Build Specialist (`build-specialist.md`)
+### 6. Build Specialist (`build-specialist.agent.md`)
 Expert in npm package development, build configuration, CI/CD workflows, and repository maintenance.
 
 **Use for:**
