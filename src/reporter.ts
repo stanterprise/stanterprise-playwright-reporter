@@ -102,6 +102,7 @@ export default class StanterpriseReporter implements Reporter {
       console.log(`Number of tests: ${suite.allTests().length}`);
       console.log(`Run started at: ${this.runStartTime.toISOString()}`);
     }
+
     // Report root suite and all child suites recursively
     const request = new EventsNS.SuiteBeginEventRequest({
       suite: mapSuite(suite, this.runId),
@@ -562,10 +563,12 @@ export default class StanterpriseReporter implements Reporter {
     suiteId: string,
     startTime: Date
   ): void {
-    console.log(
-      `Stanterprise Reporter: Suite started - ${suite.title || "root"}`
-    );
-    console.log(`  Suite type: ${suite.type}`);
+    if (this.verbose) {
+      console.log(
+        `Stanterprise Reporter: Suite started - ${suite.title || "root"}`
+      );
+      console.log(`  Suite type: ${suite.type}`);
+    }
 
     // Build metadata from suite location
     const metadata = new Map<string, string>();
@@ -606,11 +609,12 @@ export default class StanterpriseReporter implements Reporter {
     const suiteId = this.getSuiteId(suite);
     const endTime = new Date();
     const duration = endTime.getTime() - startTime.getTime();
-
-    console.log(
-      `Stanterprise Reporter: Suite ended - ${suite.title || "root"}`
-    );
-    console.log(`  Duration: ${duration}ms`);
+    if (this.verbose) {
+      console.log(
+        `Stanterprise Reporter: Suite ended - ${suite.title || "root"}`
+      );
+      console.log(`  Duration: ${duration}ms`);
+    }
 
     // Map result status to protobuf TestStatus
     const suiteStatus = this.mapSuiteStatus(result.status);
