@@ -21,6 +21,7 @@ import {
   createTimestampFromMs,
   createDuration,
 } from "./utils";
+import { mapSuite } from "./utils/suiteMapper";
 
 // Create shortcuts for the protobuf classes
 const EventsNS = events.v1.events;
@@ -102,7 +103,14 @@ export default class StanterpriseReporter implements Reporter {
       console.log(`Run started at: ${this.runStartTime.toISOString()}`);
     }
     // Report root suite and all child suites recursively
-    this.reportSuiteTreeBegin(suite);
+    const request = new EventsNS.SuiteBeginEventRequest({
+      suite: mapSuite(suite, this.runId),
+    });
+    this.reportUnary(
+      "/testsystem.v1.observer.TestEventCollector/ReportSuiteBegin",
+      request,
+      this.grpcTimeout
+    ).catch((e) => this.logGrpcErrorOnce("Failed to report suite begin", e));
   }
 
   async onExit(): Promise<void> {
@@ -134,17 +142,17 @@ export default class StanterpriseReporter implements Reporter {
     result: FullResult
   ): Promise<{ status?: FullResult["status"] } | undefined | void> | void {
     const runDuration = Date.now() - this.runStartTime.getTime();
-
-    console.log(
-      `Stanterprise Reporter: Test run ended - Run ID: ${this.runId}`
-    );
-    console.log(`Final result: ${result.status}`);
-    console.log(
-      `Run duration: ${runDuration}ms (Playwright duration: ${result.duration}ms)`
-    );
-    console.log(`Run start time: ${this.runStartTime.toISOString()}`);
-    console.log(`Playwright start time: ${result.startTime.toISOString()}`);
-
+    if (this.verbose) {
+      console.log(
+        `Stanterprise Reporter: Test run ended - Run ID: ${this.runId}`
+      );
+      console.log(`Final result: ${result.status}`);
+      console.log(
+        `Run duration: ${runDuration}ms (Playwright duration: ${result.duration}ms)`
+      );
+      console.log(`Run start time: ${this.runStartTime.toISOString()}`);
+      console.log(`Playwright start time: ${result.startTime.toISOString()}`);
+    }
     // Report all suites end (from leaves to root)
     if (this.rootSuite) {
       this.reportSuiteTreeEnd(this.rootSuite, result);
@@ -156,12 +164,12 @@ export default class StanterpriseReporter implements Reporter {
   onTestBegin(test: TestCase, result: TestResult): void {
     // Create unique test execution ID combining run ID and test ID
     const uniqueTestExecutionId = `${this.runId}-${test.id}`;
-
-    console.log(`Stanterprise Reporter: Test started - ${test.title}`);
-    console.log(`  Run ID: ${this.runId}`);
-    console.log(`  Test ID (static): ${test.id}`);
-    console.log(`  Unique Execution ID: ${uniqueTestExecutionId}`);
-
+    if (this.verbose) {
+      console.log(`Stanterprise Reporter: Test started - ${test.title}`);
+      console.log(`  Run ID: ${this.runId}`);
+      console.log(`  Test ID (static): ${test.id}`);
+      console.log(`  Unique Execution ID: ${uniqueTestExecutionId}`);
+    }
     // Get test suite run ID from parent suite if available, ensuring suite is reported
     const testSuiteRunId = test.parent ? this.getSuiteId(test.parent) : "";
 
@@ -204,10 +212,10 @@ export default class StanterpriseReporter implements Reporter {
     const uniqueStepId = `${uniqueTestExecutionId}-${
       step.title
     }-${step.startTime.getTime()}`;
-
-    console.log(`Stanterprise Reporter: Step started - ${step.title}`);
-    console.log(`  Category: ${step.category}`);
-
+    if (this.verbose) {
+      console.log(`Stanterprise Reporter: Step started - ${step.title}`);
+      console.log(`  Category: ${step.category}`);
+    }
     // Build metadata from step annotations
     const metadata = new Map<string, string>();
     metadata.set("category", step.category);
@@ -256,9 +264,10 @@ export default class StanterpriseReporter implements Reporter {
     const uniqueStepId = `${uniqueTestExecutionId}-${
       step.title
     }-${step.startTime.getTime()}`;
-
-    console.log(`Stanterprise Reporter: Step ended - ${step.title}`);
-    console.log(`  Duration: ${step.duration}ms`);
+    if (this.verbose) {
+      console.log(`Stanterprise Reporter: Step ended - ${step.title}`);
+      console.log(`  Duration: ${step.duration}ms`);
+    }
 
     // Map step error to status
     const stepStatus = mapStepStatus(!!step.error);
@@ -312,10 +321,11 @@ export default class StanterpriseReporter implements Reporter {
 
   onTestEnd(test: TestCase, result: TestResult): void {
     const uniqueTestExecutionId = `${this.runId}-${test.id}`;
-
-    console.log(`Stanterprise Reporter: Test ended - ${test.title}`);
-    console.log(`  Status: ${result.status}`);
-    console.log(`  Duration: ${result.duration}ms`);
+    if (this.verbose) {
+      console.log(`Stanterprise Reporter: Test ended - ${test.title}`);
+      console.log(`  Status: ${result.status}`);
+      console.log(`  Duration: ${result.duration}ms`);
+    }
 
     // Map Playwright test status to protobuf TestStatus
     const testStatus = mapTestStatus(result.status);
@@ -489,7 +499,13 @@ export default class StanterpriseReporter implements Reporter {
     if (!startTime) {
       // If we don't have a recorded start time for this suite, fall back to the
       // overall run start time but log a warning so timing issues can be diagnosed.
-      const suitePath = suite.titlePath().filter((t) => t).join(" > ") || suite.title || "root";
+      const suitePath =
+        suite
+          .titlePath()
+          .filter((t) => t)
+          .join(" > ") ||
+        suite.title ||
+        "root";
       console.warn(
         `Stanterprise Reporter: Missing start time for suite "${suitePath}". ` +
           `Falling back to run start time for duration calculation.`
@@ -520,7 +536,11 @@ export default class StanterpriseReporter implements Reporter {
     // We generate an ID from titlePath() which uniquely identifies the suite within the test structure.
     // The run_id is sent separately in the protobuf message to associate the suite with a specific test run.
     // titlePath() returns array like: ['', 'Parent Suite', 'Child Suite']
-    const titlePath = suite.titlePath().filter((t) => t).join("/") || "root";
+    const titlePath =
+      suite
+        .titlePath()
+        .filter((t) => t)
+        .join("/") || "root";
 
     // Sanitize path to be URL-safe
     // We replace ALL special characters including forward slashes to avoid collisions
@@ -537,7 +557,11 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   // Helper: Report suite begin event
-  private reportSuiteBegin(suite: Suite, suiteId: string, startTime: Date): void {
+  private reportSuiteBegin(
+    suite: Suite,
+    suiteId: string,
+    startTime: Date
+  ): void {
     console.log(
       `Stanterprise Reporter: Suite started - ${suite.title || "root"}`
     );
@@ -574,7 +598,11 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   // Helper: Report suite end event
-  private reportSuiteEnd(suite: Suite, result: FullResult, startTime: Date): void {
+  private reportSuiteEnd(
+    suite: Suite,
+    result: FullResult,
+    startTime: Date
+  ): void {
     const suiteId = this.getSuiteId(suite);
     const endTime = new Date();
     const duration = endTime.getTime() - startTime.getTime();
