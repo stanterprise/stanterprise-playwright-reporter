@@ -8,7 +8,21 @@ import type {
   TestStep,
   TestError,
 } from "@playwright/test/reporter";
-import { events, testCase, testSuite, common } from "@stanterprise/protobuf";
+import {
+  StepRun,
+  TestCaseRun,
+  TestSuiteRun,
+} from "@stanterprise/protobuf/testsystem/v1/entities";
+import {
+  StepBeginEventRequest,
+  StepEndEventRequest,
+  SuiteBeginEventRequest,
+  SuiteEndEventRequest,
+  TestBeginEventRequest,
+  TestEndEventRequest,
+  TestFailureEventRequest,
+} from "@stanterprise/protobuf/testsystem/v1/events";
+import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 import * as grpc from "@grpc/grpc-js";
 import { randomUUID } from "crypto";
 import { StanterpriseReporterOptions } from "./types";
@@ -22,12 +36,6 @@ import {
   createDuration,
 } from "./utils";
 import { mapSuite } from "./utils/suiteMapper";
-
-// Create shortcuts for the protobuf classes
-const EventsNS = events.v1.events;
-const TestCaseEntities = testCase.v1.entities;
-const TestSuiteEntities = testSuite.v1.entities;
-const TestStatus = common.v1.common.TestStatus;
 
 export default class StanterpriseReporter implements Reporter {
   // Generic gRPC client (we call unary methods by path directly).
@@ -67,16 +75,13 @@ export default class StanterpriseReporter implements Reporter {
         verbose: this.verbose,
       });
     }
+
+    // Generate a UUID for runId
+    this.runId = randomUUID();
   }
 
   onBegin(config: FullConfig, suite: Suite): void {
-    // Generate a UUID for runId
-    this.runId = randomUUID();
     this.rootSuite = suite;
-
-    // Clear Maps from any previous test runs to prevent memory leaks
-    this.reportedSuites.clear();
-    this.suiteTimes.clear();
 
     // Lazily create the client if enabled.
     if (this.grpcEnabled) {
@@ -104,7 +109,7 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Report root suite and all child suites recursively
-    const request = new EventsNS.SuiteBeginEventRequest({
+    const request = new SuiteBeginEventRequest({
       suite: mapSuite(suite, this.runId),
     });
     this.reportUnary(
@@ -184,8 +189,8 @@ export default class StanterpriseReporter implements Reporter {
     });
 
     // Build and send the TestBegin event via generic unary call.
-    const request = new EventsNS.TestBeginEventRequest({
-      test_case: new TestCaseEntities.TestCaseRun({
+    const request = new TestBeginEventRequest({
+      test_case: new TestCaseRun({
         id: test.id,
         name: test.title,
         run_id: this.runId,
@@ -235,8 +240,8 @@ export default class StanterpriseReporter implements Reporter {
       : "";
 
     // Build and send the StepBegin event
-    const request = new EventsNS.StepBeginEventRequest({
-      step: new TestCaseEntities.StepRun({
+    const request = new StepBeginEventRequest({
+      step: new StepRun({
         id: uniqueStepId,
         run_id: this.runId,
         test_case_run_id: uniqueTestExecutionId,
@@ -291,8 +296,8 @@ export default class StanterpriseReporter implements Reporter {
       : "";
 
     // Build and send the StepEnd event
-    const request = new EventsNS.StepEndEventRequest({
-      step: new TestCaseEntities.StepRun({
+    const request = new StepEndEventRequest({
+      step: new StepRun({
         id: uniqueStepId,
         run_id: this.runId,
         test_case_run_id: uniqueTestExecutionId,
@@ -359,8 +364,8 @@ export default class StanterpriseReporter implements Reporter {
     });
 
     // Build and send the TestEnd event
-    const request = new EventsNS.TestEndEventRequest({
-      test_case: new TestCaseEntities.TestCaseRun({
+    const request = new TestEndEventRequest({
+      test_case: new TestCaseRun({
         id: test.id,
         name: test.title,
         run_id: this.runId,
@@ -399,7 +404,7 @@ export default class StanterpriseReporter implements Reporter {
     const attachments = processAttachments(result);
 
     // Build and send the TestFailure event
-    const request = new EventsNS.TestFailureEventRequest({
+    const request = new TestFailureEventRequest({
       test_id: uniqueTestExecutionId,
       failure_message: failureMessage,
       stack_trace: stackTrace,
@@ -580,8 +585,8 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Build and send the SuiteBegin event
-    const request = new EventsNS.SuiteBeginEventRequest({
-      suite: new TestSuiteEntities.TestSuiteRun({
+    const request = new SuiteBeginEventRequest({
+      suite: new TestSuiteRun({
         id: suiteId,
         name: suite.title || "root",
         run_id: this.runId,
@@ -630,8 +635,8 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Build and send the SuiteEnd event
-    const request = new EventsNS.SuiteEndEventRequest({
-      suite: new TestSuiteEntities.TestSuiteRun({
+    const request = new SuiteEndEventRequest({
+      suite: new TestSuiteRun({
         id: suiteId,
         name: suite.title || "root",
         run_id: this.runId,

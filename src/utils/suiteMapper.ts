@@ -9,7 +9,8 @@ type SuiteType = testSuite.v1.entities.SuiteType;
 
 export function mapSuite(
   suite: Suite,
-  runId: string
+  runId: string,
+  parentSuiteId?: string
 ): testSuite.v1.entities.TestSuiteRun {
   let type: SuiteType;
   switch (suite.type) {
@@ -26,13 +27,16 @@ export function mapSuite(
       type = testSuite.v1.entities.SuiteType.PROJECT;
       break;
   }
-
+  const suiteId = generateSuiteId(suite);
   const suiteObject = new testSuite.v1.entities.TestSuiteRun({
     // id: suite.id,
-    id: generateSuiteId(suite),
+    id: suiteId,
     name: suite.title,
     run_id: runId,
-    sub_suites: suite.suites.map((childSuite) => mapSuite(childSuite, runId)),
+    parent_suite_id: parentSuiteId,
+    sub_suites: suite.suites.map((childSuite) =>
+      mapSuite(childSuite, runId, suiteId)
+    ),
     test_cases: suite.tests.map(
       (test) =>
         new TestCaseEntities.TestCaseRun({
