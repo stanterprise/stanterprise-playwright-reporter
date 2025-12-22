@@ -5,7 +5,7 @@ import { handleOnStepEndEvent } from "./onStepEndHandler";
 import { handleOnTestBeginEvent } from "./onTestBeginHandler";
 import { handleOnTestEndEvent } from "./onTestEndHandler";
 import { handleOnTestFailEvent } from "./onTestFailHandler";
-
+import { handleOnErrorEvent } from "./onErrorHandler";
 export {
   handleOnBeginEvent,
   handleOnEndEvent,
@@ -14,4 +14,5 @@ export {
   handleOnTestBeginEvent,
   handleOnTestEndEvent,
   handleOnTestFailEvent,
+  handleOnErrorEvent,
 };
