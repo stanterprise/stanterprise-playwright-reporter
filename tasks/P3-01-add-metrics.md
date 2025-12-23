@@ -2,7 +2,9 @@
 
 **Priority**: MEDIUM  
 **Effort**: 2-3 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Metrics collection would provide valuable operational visibility but is not required for basic functionality. This is a nice-to-have feature for production monitoring.
 
 ## Problem
 

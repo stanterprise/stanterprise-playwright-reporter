@@ -2,7 +2,9 @@
 
 **Priority**: CRITICAL  
 **Effort**: 1-2 hours  
-**Status**: Not Started
+**Status**: ✅ PARTIALLY COMPLETE
+
+> **Note**: Reporter.ts already has verbose checks in place for most lifecycle events (onBegin, onEnd, onTestBegin, onStepBegin, onStepEnd, onTestEnd, onTestFail). The verbose flag properly gates debug output. Handler functions still log warnings on errors.
 
 ## Problem
 

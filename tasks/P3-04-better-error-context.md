@@ -2,7 +2,9 @@
 
 **Priority**: MEDIUM  
 **Effort**: 1-2 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Current error handling includes basic context. Enhanced structured logging with correlation IDs would improve debuggability in production.
 
 ## Problem
 

@@ -2,7 +2,9 @@
 
 **Priority**: MEDIUM  
 **Effort**: 1-2 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Reporter currently uses fire-and-forget pattern with graceful degradation on gRPC failures. A startup health check would provide earlier feedback but isn't critical for operation.
 
 ## Problem
 

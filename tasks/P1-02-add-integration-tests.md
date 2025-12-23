@@ -2,7 +2,9 @@
 
 **Priority**: CRITICAL  
 **Effort**: 3-4 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - STILL NEEDED
+
+> **Note**: While the reporter has been refactored with separated handlers, integration tests are still missing. The handler architecture makes testing easier but tests still need to be written.
 
 ## Problem
 

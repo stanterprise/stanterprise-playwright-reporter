@@ -2,7 +2,9 @@
 
 **Priority**: CRITICAL  
 **Effort**: 2-3 hours  
-**Status**: Not Started
+**Status**: ✅ COMPLETE
+
+> **Refactored**: Suite hierarchy tracking has been fully implemented in `src/handlers/onBeginHandler.ts`. The `mapSuites()` and `getAllSuites()` functions recursively process the entire suite tree, correctly mapping parent-child relationships via `parent_suite_id`. All suites (root, describe blocks, file suites, project suites) are now properly reported with their hierarchical relationships intact.
 
 ## Problem
 

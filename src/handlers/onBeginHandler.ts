@@ -87,6 +87,7 @@ function mapSingleSuite(suite: Suite, runId: string): TestSuiteRun {
           run_id: runId,
         })
     ),
+    test_case_ids: suite.tests.map((test) => test.id),
     type: type,
     // start_time: createTimestamp(startTime),
     // metadata: metadata,

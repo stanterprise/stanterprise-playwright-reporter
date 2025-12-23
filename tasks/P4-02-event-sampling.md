@@ -2,7 +2,9 @@
 
 **Priority**: LOW  
 **Effort**: 1-2 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Sampling would reduce costs for extremely large test suites (1000+ tests). Not needed for typical use cases.
 
 ## Problem
 

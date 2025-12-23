@@ -2,7 +2,9 @@
 
 **Priority**: LOW  
 **Effort**: 2-3 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Advanced filtering capabilities would be useful for large organizations with diverse test suites. Not required for initial release.
 
 ## Problem
 

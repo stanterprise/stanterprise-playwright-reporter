@@ -45,7 +45,7 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     // Generate a UUID for runId
-    this.runId = randomUUID();
+    this.runId = process.env.STANTERPRISE_RUN_ID || randomUUID();
   }
 
   onBegin(config: FullConfig, suite: Suite): void {

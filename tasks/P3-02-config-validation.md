@@ -2,7 +2,9 @@
 
 **Priority**: MEDIUM  
 **Effort**: 1-2 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Basic configuration handling exists via `optionsMapper.ts`. More comprehensive validation with helpful error messages would improve developer experience.
 
 ## Problem
 

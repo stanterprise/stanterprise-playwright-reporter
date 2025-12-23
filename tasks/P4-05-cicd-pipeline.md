@@ -2,7 +2,9 @@
 
 **Priority**: LOW  
 **Effort**: 2-3 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Automated CI/CD pipeline would streamline releases but is infrastructure work, not core functionality.
 
 ## Problem
 

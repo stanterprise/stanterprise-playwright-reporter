@@ -2,7 +2,9 @@
 
 **Priority**: LOW  
 **Effort**: 2-3 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Compression would reduce network bandwidth for large attachments. Nice optimization but not critical for functionality.
 
 ## Problem
 

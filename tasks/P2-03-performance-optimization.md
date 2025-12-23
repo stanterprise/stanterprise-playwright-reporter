@@ -2,7 +2,9 @@
 
 **Priority**: HIGH  
 **Effort**: 2-3 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - ENHANCEMENT NEEDED
+
+> **Note**: Current implementation processes attachments without size limits or streaming. Performance benchmarks and optimization for large test suites with many attachments are still needed.
 
 ## Problem
 

@@ -2,7 +2,9 @@
 
 **Priority**: HIGH  
 **Effort**: 3-4 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - ENHANCEMENT NEEDED
+
+> **Note**: Current implementation sends individual gRPC calls for each event (fire-and-forget pattern). Batching would reduce network overhead and improve throughput for large test suites.
 
 ## Problem
 

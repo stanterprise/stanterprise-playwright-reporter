@@ -2,7 +2,9 @@
 
 **Priority**: LOW  
 **Effort**: 4-5 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Persistent job queue would provide guaranteed delivery but adds complexity. Current fire-and-forget pattern is adequate for most use cases.
 
 ## Problem
 

@@ -2,7 +2,9 @@
 
 **Priority**: HIGH  
 **Effort**: 2-3 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - ENHANCEMENT NEEDED
+
+> **Note**: Current implementation uses fire-and-forget gRPC calls with single-attempt error handling. Retry logic with exponential backoff would improve reliability for transient failures.
 
 ## Problem
 

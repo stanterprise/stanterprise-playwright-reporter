@@ -2,7 +2,9 @@
 
 **Priority**: LOW  
 **Effort**: 3-4 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - FUTURE ENHANCEMENT
+
+> **Note**: Anonymous usage telemetry would provide insights for improvements but requires careful privacy consideration.
 
 ## Problem
 

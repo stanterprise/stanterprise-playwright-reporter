@@ -2,7 +2,9 @@
 
 **Priority**: CRITICAL  
 **Effort**: 2-3 hours  
-**Status**: Not Started
+**Status**: ⚠️ NOT STARTED - STILL NEEDED
+
+> **Note**: Utility functions have comprehensive tests (statusMapper, timeHelpers, attachmentProcessor). Reporter class and handler functions still lack unit tests. The refactored handler architecture makes testing more modular.
 
 ## Problem
 

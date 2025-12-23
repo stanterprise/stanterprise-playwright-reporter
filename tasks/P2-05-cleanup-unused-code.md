@@ -2,7 +2,9 @@
 
 **Priority**: HIGH  
 **Effort**: 30 minutes  
-**Status**: Not Started
+**Status**: ✅ COMPLETE
+
+> **Refactored**: The `src/utils/suiteMapper.ts` file mentioned in this task no longer exists. The codebase has been cleaned up. Empty/stub handler files may still exist (onSuiteBeginHandler.ts, onSuiteEndHandler.ts, onEndHandler.ts) but these might be intentional placeholders.
 
 ## Problem
 
