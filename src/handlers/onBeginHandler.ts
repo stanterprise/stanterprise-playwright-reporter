@@ -14,6 +14,7 @@ import { generateSuiteId } from "../utils";
 export function handleOnBeginEvent(
   config: FullConfig,
   suite: Suite,
+  name: string,
   runId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions
@@ -21,8 +22,11 @@ export function handleOnBeginEvent(
   // Report root suite and all child suites recursively
   const request = new MapTestRunEventRequest({
     run_id: runId,
+    name: name,
     test_suites: mapSuites(suite, runId),
+    total_tests: suite.allTests().length,
   });
+
   reportUnary(
     options,
     client,

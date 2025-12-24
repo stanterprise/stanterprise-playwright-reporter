@@ -15,6 +15,7 @@ import defineOptions from "./utils/optionsMapper";
 import getClient from "./client/grpcClient";
 import {
   handleOnBeginEvent,
+  handleOnEndEvent,
   handleOnErrorEvent,
   handleOnStepBeginEvent,
   handleOnStepEndEvent,
@@ -76,6 +77,7 @@ export default class StanterpriseReporter implements Reporter {
       handleOnBeginEvent(
         config,
         suite,
+        process.env.STANTERPRISE_TEST_RUN_NAME || "Playwright Test Run",
         this.runId,
         this.grpcClient!,
         this.options
@@ -112,6 +114,10 @@ export default class StanterpriseReporter implements Reporter {
       );
       console.log(`Run start time: ${this.runStartTime.toISOString()}`);
       console.log(`Playwright start time: ${result.startTime.toISOString()}`);
+    }
+
+    if (this.options.grpcEnabled) {
+      handleOnEndEvent(result, this.runId, this.grpcClient!, this.options);
     }
 
     return Promise.resolve();
