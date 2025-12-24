@@ -18,7 +18,7 @@ export function createTimestamp(date: Date): InstanceType<typeof Timestamp> {
   }
   return new Timestamp({
     seconds: Math.floor(ms / 1000),
-    nanos: (ms % 1000) * 1000000,
+    nanos: Math.floor((ms % 1000) * 1000000),
   });
 }
 
@@ -36,7 +36,7 @@ export function createTimestampFromMs(
   }
   return new Timestamp({
     seconds: Math.floor(ms / 1000),
-    nanos: (ms % 1000) * 1000000,
+    nanos: Math.floor((ms % 1000) * 1000000),
   });
 }
 
@@ -65,6 +65,6 @@ export function createDuration(durationMs: number): any {
   }
   return new Timestamp({
     seconds: Math.floor(durationMs / 1000),
-    nanos: (durationMs % 1000) * 1000000,
+    nanos: Math.floor((durationMs % 1000) * 1000000),
   });
 }

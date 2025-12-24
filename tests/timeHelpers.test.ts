@@ -113,5 +113,60 @@ describe("timeHelpers", () => {
         "Negative duration provided to createDuration"
       );
     });
+
+    it("should handle fractional milliseconds from Playwright", () => {
+      // Playwright can return durations like 37885.967 milliseconds
+      const duration = createDuration(37885.967);
+
+      expect(duration.seconds).toBe(37);
+      // The nanos value should be Math.floor((885.967) * 1000000)
+      expect(duration.nanos).toBe(Math.floor((37885.967 % 1000) * 1000000));
+      // Verify nanos is an integer
+      expect(Number.isInteger(duration.nanos)).toBe(true);
+    });
+
+    it("should handle various fractional milliseconds", () => {
+      const testCases = [
+        { ms: 1.234 },
+        { ms: 100.567 },
+        { ms: 1000.999 },
+        { ms: 12345.678 },
+      ];
+
+      testCases.forEach(({ ms }) => {
+        const duration = createDuration(ms);
+        expect(duration.seconds).toBe(Math.floor(ms / 1000));
+        expect(duration.nanos).toBe(Math.floor((ms % 1000) * 1000000));
+        expect(Number.isInteger(duration.nanos)).toBe(true);
+      });
+    });
+  });
+
+  describe("createTimestampFromMs fractional milliseconds", () => {
+    it("should handle fractional milliseconds from Playwright", () => {
+      // Test with a fractional millisecond value
+      const ms = 1704110400123.456;
+      const timestamp = createTimestampFromMs(ms);
+
+      expect(timestamp.seconds).toBe(Math.floor(ms / 1000));
+      expect(timestamp.nanos).toBe(Math.floor((ms % 1000) * 1000000));
+      // Verify both are integers
+      expect(Number.isInteger(timestamp.seconds)).toBe(true);
+      expect(Number.isInteger(timestamp.nanos)).toBe(true);
+    });
+  });
+
+  describe("createTimestamp fractional milliseconds", () => {
+    it("should handle dates with fractional milliseconds", () => {
+      // Create a date and manipulate getTime to simulate fractional ms
+      const date = new Date("2024-01-01T12:00:00.123Z");
+      const originalGetTime = date.getTime.bind(date);
+      date.getTime = () => originalGetTime() + 0.456;
+
+      const timestamp = createTimestamp(date);
+
+      expect(Number.isInteger(timestamp.seconds)).toBe(true);
+      expect(Number.isInteger(timestamp.nanos)).toBe(true);
+    });
   });
 });

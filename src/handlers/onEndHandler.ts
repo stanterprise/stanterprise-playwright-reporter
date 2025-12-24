@@ -50,7 +50,7 @@ export function handleOnEndEvent(
   reportUnary(
     options,
     client,
-    "/testsystem.v1.observer.TestEventCollector/ReportEnd",
+    "/testsystem.v1.observer.TestEventCollector/ReportRunEnd",
     request,
     options.grpcTimeout
   ).catch((error) => {
