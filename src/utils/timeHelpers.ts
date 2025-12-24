@@ -9,9 +9,16 @@ const Timestamp = google.google.protobuf.Timestamp;
  * Create a protobuf Timestamp from a JavaScript Date
  */
 export function createTimestamp(date: Date): InstanceType<typeof Timestamp> {
+  const ms = date.getTime();
+  // Validate to prevent NaN from causing protobuf serialization failures
+  if (isNaN(ms)) {
+    throw new Error(
+      `Invalid date provided to createTimestamp: ${date.toString()}`
+    );
+  }
   return new Timestamp({
-    seconds: Math.floor(date.getTime() / 1000),
-    nanos: (date.getTime() % 1000) * 1000000,
+    seconds: Math.floor(ms / 1000),
+    nanos: (ms % 1000) * 1000000,
   });
 }
 
@@ -21,6 +28,12 @@ export function createTimestamp(date: Date): InstanceType<typeof Timestamp> {
 export function createTimestampFromMs(
   ms: number
 ): InstanceType<typeof Timestamp> {
+  // Validate to prevent NaN from causing protobuf serialization failures
+  if (typeof ms !== "number" || isNaN(ms)) {
+    throw new Error(
+      `Invalid milliseconds provided to createTimestampFromMs: ${ms}`
+    );
+  }
   return new Timestamp({
     seconds: Math.floor(ms / 1000),
     nanos: (ms % 1000) * 1000000,
@@ -39,6 +52,17 @@ export function createTimestampFromMs(
  * @returns A Duration object (implemented as Timestamp due to export limitations)
  */
 export function createDuration(durationMs: number): any {
+  // Validate to prevent NaN from causing protobuf serialization failures
+  if (typeof durationMs !== "number" || isNaN(durationMs)) {
+    throw new Error(
+      `Invalid duration provided to createDuration: ${durationMs}`
+    );
+  }
+  if (durationMs < 0) {
+    throw new Error(
+      `Negative duration provided to createDuration: ${durationMs}`
+    );
+  }
   return new Timestamp({
     seconds: Math.floor(durationMs / 1000),
     nanos: (durationMs % 1000) * 1000000,
