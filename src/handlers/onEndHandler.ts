@@ -6,7 +6,7 @@ import { createDuration, createTimestampFromMs } from "../utils";
 import { TestRunEndEventRequest } from "@stanterprise/protobuf/testsystem/v1/events";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 
-function mapStatusToTestStatus(status: FullResult["status"]): TestStatus {
+function mapTestStatus(status: FullResult["status"]): TestStatus {
   switch (status) {
     case "passed":
       return TestStatus.PASSED;
@@ -29,7 +29,7 @@ export function handleOnEndEvent(
 ) {
   const request = new TestRunEndEventRequest({
     run_id: runId,
-    final_status: mapStatusToTestStatus(result.status),
+    final_status: mapTestStatus(result.status),
     start_time: createTimestampFromMs(result.startTime.getTime()),
     duration: createDuration(result.duration),
   });
