@@ -27,11 +27,25 @@ export function handleOnEndEvent(
   client: grpc.Client,
   options: StanterpriseReporterOptions
 ) {
+  // Validate and sanitize inputs to prevent serialization failures
+  const startTimeMs = result.startTime?.getTime();
+  const duration = result.duration;
+
+  // Ensure valid numeric values (protobuf cannot serialize NaN or undefined)
+  const validStartTimeMs =
+    typeof startTimeMs === "number" && !isNaN(startTimeMs)
+      ? startTimeMs
+      : Date.now();
+  const validDuration =
+    typeof duration === "number" && !isNaN(duration) && duration >= 0
+      ? duration
+      : 0;
+
   const request = new TestRunEndEventRequest({
     run_id: runId,
     final_status: mapTestStatus(result.status),
-    start_time: createTimestampFromMs(result.startTime.getTime()),
-    duration: createDuration(result.duration),
+    start_time: createTimestampFromMs(validStartTimeMs),
+    duration: createDuration(validDuration),
   });
   reportUnary(
     options,

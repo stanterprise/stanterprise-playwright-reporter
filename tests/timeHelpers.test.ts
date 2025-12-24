@@ -23,6 +23,14 @@ describe("timeHelpers", () => {
       expect(timestamp.seconds).toBe(expectedSeconds);
       expect(timestamp.nanos).toBe(expectedNanos);
     });
+
+    it("should throw error for invalid date", () => {
+      const invalidDate = new Date("invalid");
+      
+      expect(() => createTimestamp(invalidDate)).toThrow(
+        "Invalid date provided to createTimestamp"
+      );
+    });
   });
 
   describe("createTimestampFromMs", () => {
@@ -39,6 +47,18 @@ describe("timeHelpers", () => {
 
       expect(timestamp.seconds).toBe(0);
       expect(timestamp.nanos).toBe(0);
+    });
+
+    it("should throw error for NaN milliseconds", () => {
+      expect(() => createTimestampFromMs(NaN)).toThrow(
+        "Invalid milliseconds provided to createTimestampFromMs"
+      );
+    });
+
+    it("should throw error for undefined milliseconds", () => {
+      expect(() => createTimestampFromMs(undefined as any)).toThrow(
+        "Invalid milliseconds provided to createTimestampFromMs"
+      );
     });
   });
 
@@ -70,6 +90,24 @@ describe("timeHelpers", () => {
 
       expect(duration.seconds).toBe(5);
       expect(duration.nanos).toBe(250 * 1000000);
+    });
+
+    it("should throw error for NaN duration", () => {
+      expect(() => createDuration(NaN)).toThrow(
+        "Invalid duration provided to createDuration"
+      );
+    });
+
+    it("should throw error for undefined duration", () => {
+      expect(() => createDuration(undefined as any)).toThrow(
+        "Invalid duration provided to createDuration"
+      );
+    });
+
+    it("should throw error for negative duration", () => {
+      expect(() => createDuration(-100)).toThrow(
+        "Negative duration provided to createDuration"
+      );
     });
   });
 });
