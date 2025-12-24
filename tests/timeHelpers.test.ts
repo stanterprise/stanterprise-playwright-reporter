@@ -1,7 +1,11 @@
 /**
  * Unit tests for time helper functions
  */
-import { createTimestamp, createTimestampFromMs, createDuration } from "../src/utils/timeHelpers";
+import {
+  createTimestamp,
+  createTimestampFromMs,
+  createDuration,
+} from "../src/utils/timeHelpers";
 
 describe("timeHelpers", () => {
   describe("createTimestamp", () => {
@@ -26,7 +30,7 @@ describe("timeHelpers", () => {
 
     it("should throw error for invalid date", () => {
       const invalidDate = new Date("invalid");
-      
+
       expect(() => createTimestamp(invalidDate)).toThrow(
         "Invalid date provided to createTimestamp"
       );
