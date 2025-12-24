@@ -39,5 +39,15 @@ export function handleOnEndEvent(
     "/testsystem.v1.observer.TestEventCollector/ReportEnd",
     request,
     options.grpcTimeout
-  ).catch((e) => console.error("Failed to report end event", e));
+  ).catch((error) => {
+    if (error instanceof Error) {
+      console.error(`Failed to report end event: ${error.message}`, {
+        stack: error.stack,
+      });
+    } else {
+      console.error("Failed to report end event: Unknown error type", {
+        error,
+      });
+    }
+  });
 }
