@@ -51,6 +51,7 @@ export function handleOnStepEndEvent(
         ? generateStepId(step.parent, test)
         : undefined,
       worker_index: result.workerIndex.toString(),
+      retry_index: result.retry,
     }),
   });
 
