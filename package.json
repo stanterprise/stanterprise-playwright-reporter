@@ -53,6 +53,6 @@
     "@grpc/grpc-js": "^1.14.1",
     "@protobuf-ts/grpc-transport": "^2.11.1",
     "@protobuf-ts/grpcweb-transport": "^2.11.1",
-    "@stanterprise/protobuf": "^0.0.18"
+    "@stanterprise/protobuf": "^0.0.19"
   }
 }

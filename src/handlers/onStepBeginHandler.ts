@@ -6,6 +6,7 @@ import { createTimestamp } from "../utils";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
 import { generateStepId } from "../utils";
+import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 
 export function handleOnStepBeginEvent(
   test: TestCase,
@@ -33,13 +34,14 @@ export function handleOnStepBeginEvent(
     step: new StepRun({
       id: stepId,
       run_id: runId,
-      test_case_run_id: test.id,
+      test_case_id: test.id,
       title: step.title,
+      status: TestStatus.RUNNING,
       type: step.category,
       start_time: createTimestamp(step.startTime),
       location: step.location
         ? `${step.location.file}:${step.location.line}:${step.location.column}`
-        : "",
+        : undefined,
       metadata: metadata,
       parent_step_id: step.parent
         ? generateStepId(step.parent, test)

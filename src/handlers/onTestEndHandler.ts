@@ -55,7 +55,7 @@ export function handleOnTestEndEvent(
       id: test.id,
       name: test.title,
       run_id: runId,
-      test_suite_run_id: suiteId,
+      test_suite_id: suiteId,
       status: testStatus,
       start_time: createTimestamp(result.startTime),
       attachments: attachments,

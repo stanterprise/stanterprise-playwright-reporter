@@ -1,6 +1,6 @@
 import { FullConfig } from "@playwright/test";
 import { Suite } from "@playwright/test/reporter";
-import { MapTestRunEventRequest } from "@stanterprise/protobuf/testsystem/v1/events";
+import { ReportRunStartEventRequest } from "@stanterprise/protobuf/testsystem/v1/events";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
@@ -10,6 +10,7 @@ import {
   TestCaseRun,
 } from "@stanterprise/protobuf/testsystem/v1/entities";
 import { generateSuiteId } from "../utils";
+import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 
 export function handleOnBeginEvent(
   config: FullConfig,
@@ -20,7 +21,7 @@ export function handleOnBeginEvent(
   options: StanterpriseReporterOptions
 ) {
   // Report root suite and all child suites recursively
-  const request = new MapTestRunEventRequest({
+  const request = new ReportRunStartEventRequest({
     run_id: runId,
     name: name,
     test_suites: mapSuites(suite, runId),
@@ -30,7 +31,7 @@ export function handleOnBeginEvent(
   reportUnary(
     options,
     client,
-    "/testsystem.v1.observer.TestEventCollector/MapTestRun",
+    "/testsystem.v1.observer.TestEventCollector/ReportRunStart",
     request,
     options.grpcTimeout
   ).catch((e) => {
@@ -71,7 +72,7 @@ function mapSingleSuite(suite: Suite, runId: string): TestSuiteRun {
       type = SuiteType.SUBSUITE;
       break;
     case "file":
-      type = SuiteType.SUBSUITE;
+      type = SuiteType.FILE;
       break;
     case "project":
       type = SuiteType.PROJECT;
@@ -83,17 +84,27 @@ function mapSingleSuite(suite: Suite, runId: string): TestSuiteRun {
     name: suite.title,
     run_id: runId,
     parent_suite_id: parentSuiteId,
+    status: TestStatus.NOT_RUN,
     test_cases: suite.tests.map(
       (test) =>
         new TestCaseRun({
           id: test.id,
           name: test.title,
           run_id: runId,
+          test_suite_id: suiteId,
+          tags: test.tags,
+          location: test.location
+            ? `${test.location.file}:${test.location.line}:${test.location.column}`
+            : undefined,
+          status: TestStatus.NOT_RUN,
+          retry_count: test.retries,
+          retry_index: 0,
         })
     ),
     test_case_ids: suite.tests.map((test) => test.id),
     type: type,
-    // start_time: createTimestamp(startTime),
-    // metadata: metadata,
+    location: suite.location
+      ? `${suite.location.file}:${suite.location.line}:${suite.location.column}`
+      : undefined,
   });
 }
