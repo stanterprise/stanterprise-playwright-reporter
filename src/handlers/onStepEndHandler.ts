@@ -35,7 +35,7 @@ export function handleOnStepEndEvent(
     step: new StepRun({
       id: stepId,
       run_id: runId,
-      test_case_run_id: test.id,
+      test_case_id: test.id,
       title: step.title,
       type: step.category,
       start_time: createTimestamp(step.startTime),

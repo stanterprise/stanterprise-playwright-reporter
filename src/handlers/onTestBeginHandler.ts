@@ -5,6 +5,7 @@ import { TestCase, TestResult } from "@playwright/test/reporter";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
+import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 
 export function handleOnTestBeginEvent(
   test: TestCase,
@@ -19,7 +20,13 @@ export function handleOnTestBeginEvent(
       id: test.id,
       name: test.title,
       run_id: runId,
-      test_suite_run_id: generateSuiteId(test.parent),
+      retry_index: result.retry,
+      retry_count: test.retries,
+      location: test.location
+        ? `${test.location.file}:${test.location.line}:${test.location.column}`
+        : undefined,
+      status: TestStatus.RUNNING,
+      test_suite_id: generateSuiteId(test.parent),
       start_time: createTimestamp(result.startTime),
       tags: test.tags,
     }),
