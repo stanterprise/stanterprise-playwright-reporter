@@ -6,6 +6,7 @@ import {
   processAttachments,
   extractErrorInfo,
   createTimestamp,
+  createDuration,
 } from "../utils";
 import { reportUnary } from "../client/grpcClient";
 import { StanterpriseReporterOptions } from "../types";
@@ -58,6 +59,7 @@ export function handleOnTestEndEvent(
       test_suite_id: suiteId,
       status: testStatus,
       start_time: createTimestamp(result.startTime),
+      duration: createDuration(result.duration),
       attachments: attachments,
       error_message: errorMessage,
       stack_trace: stackTrace,
