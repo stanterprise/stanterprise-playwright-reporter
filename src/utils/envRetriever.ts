@@ -4,15 +4,7 @@ export default function getEnvVariables(): Map<string, string> {
   const filteredEntries = Object.entries(envValues)
     .filter(([key]) => key.startsWith(prefix))
     .map(([key, value]) => {
-      const parsedValue =
-        value === "true"
-          ? true
-          : value === "false"
-          ? false
-          : !isNaN(Number(value)) && value !== ""
-          ? Number(value)
-          : value || "";
-      return [key, parsedValue] as [string, string];
+      return [key, value || ""] as [string, string];
     });
 
   return new Map(filteredEntries);
