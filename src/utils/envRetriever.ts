@@ -6,11 +6,11 @@ export default function getEnvVariables(): Map<string, string> {
     .map(([key, value]) => {
       const parsedValue =
         value === "true"
-          ? true
+          ? "true"
           : value === "false"
-          ? false
+          ? "false"
           : !isNaN(Number(value)) && value !== ""
-          ? Number(value)
+          ? String(Number(value))
           : value || "";
       return [key, parsedValue] as [string, string];
     });
