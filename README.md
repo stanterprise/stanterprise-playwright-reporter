@@ -59,11 +59,24 @@ You can also configure the reporter using environment variables:
 
 - `STANTERPRISE_GRPC_ADDRESS`: gRPC server address (default: `localhost:50051`)
 - `STANTERPRISE_GRPC_ENABLED`: Enable/disable gRPC reporting (default: `true`)
+- `STANTERPRISE_META_*`: Custom metadata fields for test runs (prefix will be stripped)
+
+#### Custom Metadata
+
+Any environment variable with the `STANTERPRISE_META_` prefix will be automatically included in the test run metadata. The prefix is stripped from the key name.
+
+For example:
+- `STANTERPRISE_META_BUILD_ID=12345` becomes `BUILD_ID: 12345` in metadata
+- `STANTERPRISE_META_BRANCH=main` becomes `BRANCH: main` in metadata
+- `STANTERPRISE_META_COMMIT_SHA=abc123` becomes `COMMIT_SHA: abc123` in metadata
 
 Example:
 
 ```bash
-STANTERPRISE_GRPC_ADDRESS=myserver.com:50051 npx playwright test
+STANTERPRISE_GRPC_ADDRESS=myserver.com:50051 \
+STANTERPRISE_META_BUILD_ID=12345 \
+STANTERPRISE_META_BRANCH=main \
+npx playwright test
 ```
 
 ## Configuration Options

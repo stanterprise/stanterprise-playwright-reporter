@@ -9,9 +9,8 @@ import {
   SuiteType,
   TestCaseRun,
 } from "@stanterprise/protobuf/testsystem/v1/entities";
-import { generateSuiteId } from "../utils";
+import { generateSuiteId, getEnvVariables } from "../utils";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
-import getEnvVariables from "../utils/envRetriever";
 
 export function handleOnBeginEvent(
   config: FullConfig,
