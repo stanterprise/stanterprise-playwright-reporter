@@ -11,6 +11,7 @@ import {
 } from "@stanterprise/protobuf/testsystem/v1/entities";
 import { generateSuiteId } from "../utils";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
+import getEnvVariables from "../utils/envRetriever";
 
 export function handleOnBeginEvent(
   config: FullConfig,
@@ -21,11 +22,22 @@ export function handleOnBeginEvent(
   options: StanterpriseReporterOptions
 ) {
   // Report root suite and all child suites recursively
+  const metadataMap = new Map<string, string>(
+    Object.entries(config.metadata || {})
+  );
+
+  const variables = getEnvVariables();
+  // Merge environment variables into metadata
+  variables.forEach((value, key) => {
+    metadataMap.set(key, value);
+  });
+
   const request = new ReportRunStartEventRequest({
     run_id: runId,
     name: name,
     test_suites: mapSuites(suite, runId),
     total_tests: suite.allTests().length,
+    metadata: metadataMap,
   });
 
   reportUnary(
