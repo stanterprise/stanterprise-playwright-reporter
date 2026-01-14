@@ -21,8 +21,12 @@ export function handleOnBeginEvent(
   options: StanterpriseReporterOptions
 ) {
   // Report root suite and all child suites recursively
+  // Convert all metadata values to strings for protobuf compatibility
   const metadataMap = new Map<string, string>(
-    Object.entries(config.metadata || {})
+    Object.entries(config.metadata || {}).map(([key, value]) => [
+      key,
+      String(value),
+    ])
   );
 
   const variables = getEnvVariables();
