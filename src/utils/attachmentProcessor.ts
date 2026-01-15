@@ -14,17 +14,20 @@ const BYTES_PER_MB = 1048576;
 /**
  * Process Playwright test attachments into protobuf Attachment objects
  * @param result Test result containing attachments
- * @param maxAttachmentSize Maximum size for attachment content (default 10MB)
+ * @param maxAttachmentSize Maximum size for attachment content (default 1MB, reduced from 10MB)
  */
 export function processAttachments(
   result: TestResult,
-  maxAttachmentSize: number = 10485760 // 10MB default
+  maxAttachmentSize: number = 1048576 // 1MB default (reduced from 10MB to prevent large payloads)
 ): InstanceType<typeof Attachment>[] {
   const attachments: InstanceType<typeof Attachment>[] = [];
 
   if (!result.attachments || result.attachments.length === 0) {
     return attachments;
   }
+
+  let totalAttachmentSize = 0;
+  const MAX_TOTAL_ATTACHMENT_SIZE = 2097152; // 2MB total limit across all attachments
 
   for (const attachment of result.attachments) {
     const att = new Attachment({
@@ -35,13 +38,15 @@ export function processAttachments(
     // Always prefer path if available to avoid large payloads
     if (attachment.path) {
       att.uri = attachment.path;
-    } else if (attachment.body) {
-      // Only include body content if it's within size limit
+      attachments.push(att);
+      continue;
+    }
+
+    if (attachment.body) {
       const bodySize = attachment.body.length;
-      if (bodySize <= maxAttachmentSize) {
-        att.content = attachment.body;
-      } else {
-        // Skip large attachments without path - log warning
+
+      // Check individual attachment size
+      if (bodySize > maxAttachmentSize) {
         console.warn(
           `Attachment "${attachment.name}" (${(bodySize / BYTES_PER_MB).toFixed(
             2
@@ -51,7 +56,27 @@ export function processAttachments(
             )}MB) and has no path. Skipping content.`
         );
         // Still add the attachment metadata without content
+        attachments.push(att);
+        continue;
       }
+
+      // Check total accumulated size
+      if (totalAttachmentSize + bodySize > MAX_TOTAL_ATTACHMENT_SIZE) {
+        console.warn(
+          `Attachment "${attachment.name}" (${(bodySize / BYTES_PER_MB).toFixed(
+            2
+          )}MB) would exceed total attachment size limit ` +
+            `(${(MAX_TOTAL_ATTACHMENT_SIZE / BYTES_PER_MB).toFixed(
+              2
+            )}MB). Skipping content.`
+        );
+        attachments.push(att);
+        continue;
+      }
+
+      // Include content if within limits
+      att.content = attachment.body;
+      totalAttachmentSize += bodySize;
     }
 
     attachments.push(att);

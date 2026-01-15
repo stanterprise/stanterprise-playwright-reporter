@@ -68,6 +68,19 @@ export function handleOnTestEndEvent(
   const serializedPayload = request.serializeBinary();
   const payloadSize = serializedPayload.length;
 
+  // Warn if payload is unusually large (>1MB)
+  if (payloadSize > 1048576) {
+    console.warn(
+      `Large payload detected for test "${test.title}": ${(
+        payloadSize / BYTES_PER_MB
+      ).toFixed(2)}MB. ` +
+        `Attachments: ${attachments.length}, Metadata keys: ${
+          Object.keys(metadata).length
+        }, ` +
+        `Error length: ${errorMessage.length + stackTrace.length} bytes`
+    );
+  }
+
   // Fire-and-forget to avoid slowing tests
   reportUnary(
     options,

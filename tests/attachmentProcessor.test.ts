@@ -149,6 +149,71 @@ describe("attachmentProcessor", () => {
       // Content should be empty when path is used
       expect(attachments[0].content).toEqual(new Uint8Array());
     });
+
+    it("should respect total attachment size limit across multiple attachments", () => {
+      // Create 3 attachments of 1MB each = 3MB total
+      // With 2MB total limit, some should be skipped
+      const attachment1MB = Buffer.alloc(1 * 1024 * 1024);
+      const result: Partial<TestResult> = {
+        attachments: [
+          {
+            name: "attachment1",
+            contentType: "application/octet-stream",
+            body: attachment1MB,
+          },
+          {
+            name: "attachment2",
+            contentType: "application/octet-stream",
+            body: attachment1MB,
+          },
+          {
+            name: "attachment3",
+            contentType: "application/octet-stream",
+            body: attachment1MB,
+          },
+        ],
+      };
+
+      const attachments = processAttachments(result as TestResult);
+
+      // All 3 attachments should be present (metadata)
+      expect(attachments).toHaveLength(3);
+
+      // First 2 should have content (within 2MB total limit)
+      expect(attachments[0].content).toEqual(attachment1MB);
+      expect(attachments[1].content).toEqual(attachment1MB);
+
+      // Third should be skipped (would exceed 2MB limit)
+      expect(attachments[2].content).toEqual(new Uint8Array());
+    });
+
+    it("should handle mix of path and body attachments with size limits", () => {
+      const largeBody = Buffer.alloc(1.5 * 1024 * 1024); // 1.5MB
+      const result: Partial<TestResult> = {
+        attachments: [
+          {
+            name: "video-with-path",
+            contentType: "video/webm",
+            path: "/path/to/video.webm",
+          },
+          {
+            name: "large-trace",
+            contentType: "application/zip",
+            body: largeBody,
+          },
+        ],
+      };
+
+      const attachments = processAttachments(result as TestResult);
+
+      expect(attachments).toHaveLength(2);
+
+      // Path attachment should always work
+      expect(attachments[0].uri).toBe("/path/to/video.webm");
+
+      // Large body should be skipped (exceeds 1MB default)
+      expect(attachments[1].content).toEqual(new Uint8Array());
+    });
   });
 
   describe("extractErrorInfo", () => {
