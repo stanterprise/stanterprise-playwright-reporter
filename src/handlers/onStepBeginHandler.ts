@@ -2,7 +2,7 @@ import { TestCase, TestResult, TestStep } from "@playwright/test/reporter";
 import { StepRun } from "@stanterprise/protobuf/testsystem/v1/entities";
 import { StepBeginEventRequest } from "@stanterprise/protobuf/testsystem/v1/events";
 import { StanterpriseReporterOptions } from "../types";
-import { createTimestamp } from "../utils";
+import { createTimestamp, buildStepMetadata, toMetadataMap } from "../utils";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
 import { generateStepId } from "../utils";
@@ -17,14 +17,7 @@ export function handleOnStepBeginEvent(
   options: StanterpriseReporterOptions
 ) {
   // Build metadata from step annotations
-  const metadata = new Map<string, string>();
-  metadata.set("category", step.category);
-  step.annotations.forEach((annotation, index) => {
-    metadata.set(`annotation_${index}_type`, annotation.type);
-    if (annotation.description) {
-      metadata.set(`annotation_${index}_description`, annotation.description);
-    }
-  });
+  const metadata = buildStepMetadata(step);
 
   // Get parent step ID if this step has a parent
   const stepId = generateStepId(step, test);
@@ -42,7 +35,7 @@ export function handleOnStepBeginEvent(
       location: step.location
         ? `${step.location.file}:${step.location.line}:${step.location.column}`
         : undefined,
-      metadata: metadata,
+      metadata: toMetadataMap(metadata),
       parent_step_id: step.parent
         ? generateStepId(step.parent, test)
         : undefined,

@@ -9,7 +9,7 @@ import {
   SuiteType,
   TestCaseRun,
 } from "@stanterprise/protobuf/testsystem/v1/entities";
-import { generateSuiteId, getEnvVariables } from "../utils";
+import { generateSuiteId, getEnvVariables, toMetadataMap } from "../utils";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 
 export function handleOnBeginEvent(
@@ -22,17 +22,16 @@ export function handleOnBeginEvent(
 ) {
   // Report root suite and all child suites recursively
   // Convert all metadata values to strings for protobuf compatibility
-  const metadataMap = new Map<string, string>(
-    Object.entries(config.metadata || {}).map(([key, value]) => [
-      key,
-      String(value),
-    ])
-  );
+  // Use plain object instead of Map - protobuf expects object literals
+  const metadata: Record<string, string> = {};
+  Object.entries(config.metadata || {}).forEach(([key, value]) => {
+    metadata[key] = String(value);
+  });
 
   const variables = getEnvVariables();
   // Merge environment variables into metadata
   variables.forEach((value, key) => {
-    metadataMap.set(key, value);
+    metadata[key] = value;
   });
 
   const request = new ReportRunStartEventRequest({
@@ -40,7 +39,7 @@ export function handleOnBeginEvent(
     name: name,
     test_suites: mapSuites(suite, runId),
     total_tests: suite.allTests().length,
-    metadata: metadataMap,
+    metadata: toMetadataMap(metadata),
   });
 
   reportUnary(

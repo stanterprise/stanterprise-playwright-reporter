@@ -25,6 +25,19 @@ export interface StanterpriseReporterOptions {
   grpcTimeout?: number;
 
   /**
+   * Maximum message size for gRPC calls in bytes
+   * @default 104857600 (100MB)
+   */
+  grpcMaxMessageSize?: number;
+
+  /**
+   * Maximum size for attachment content in bytes
+   * Attachments larger than this will only include the path reference
+   * @default 10485760 (10MB)
+   */
+  maxAttachmentSize?: number;
+
+  /**
    * Whether to include verbose logging
    * @default false
    */

@@ -7,11 +7,18 @@ import {
   extractErrorInfo,
   createTimestamp,
   createDuration,
+  buildTestMetadata,
+  toMetadataMap,
 } from "../utils";
 import { reportUnary } from "../client/grpcClient";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { generateSuiteId } from "../utils";
+
+/**
+ * Constant for converting bytes to megabytes
+ */
+const BYTES_PER_MB = 1048576;
 
 export function handleOnTestEndEvent(
   test: TestCase,
@@ -24,7 +31,10 @@ export function handleOnTestEndEvent(
   const testStatus = mapTestStatus(result.status);
 
   // Process attachments (screenshots, videos, etc.)
-  const attachments = processAttachments(result);
+  const attachments = processAttachments(
+    result,
+    options.maxAttachmentSize || 10485760
+  );
 
   // Extract error information if the test failed
   const { errorMessage, stackTrace, errors } = extractErrorInfo(result);
@@ -33,22 +43,7 @@ export function handleOnTestEndEvent(
   const suiteId = generateSuiteId(test.parent);
 
   // Build metadata from test annotations and result metadata
-  const metadata = new Map<string, string>();
-  test.annotations.forEach((annotation, index) => {
-    metadata.set(`annotation_${index}_type`, annotation.type);
-    if (annotation.description) {
-      metadata.set(`annotation_${index}_description`, annotation.description);
-    }
-  });
-  result.annotations.forEach((annotation, index) => {
-    metadata.set(`result_annotation_${index}_type`, annotation.type);
-    if (annotation.description) {
-      metadata.set(
-        `result_annotation_${index}_description`,
-        annotation.description
-      );
-    }
-  });
+  const metadata = buildTestMetadata(test, result);
 
   // Build and send the TestEnd event
   const request = new TestEndEventRequest({
@@ -64,10 +59,14 @@ export function handleOnTestEndEvent(
       error_message: errorMessage,
       stack_trace: stackTrace,
       errors: errors,
-      metadata: metadata,
+      metadata: toMetadataMap(metadata),
       tags: test.tags,
     }),
   });
+
+  // Serialize once to capture payload size for potential error logging
+  const serializedPayload = request.serializeBinary();
+  const payloadSize = serializedPayload.length;
 
   // Fire-and-forget to avoid slowing tests
   reportUnary(
@@ -76,5 +75,12 @@ export function handleOnTestEndEvent(
     "/testsystem.v1.observer.TestEventCollector/ReportTestEnd",
     request,
     options.grpcTimeout
-  ).catch((e) => console.error("Failed to report test end", e));
+  ).catch((e) => {
+    console.error(
+      `Failed to report test end for "${test.title}" (payload size: ${(
+        payloadSize / BYTES_PER_MB
+      ).toFixed(2)}MB)`,
+      e
+    );
+  });
 }

@@ -5,9 +5,15 @@ export default function getClient(
   options: StanterpriseReporterOptions
 ): grpc.Client | null {
   try {
+    const maxMessageSize = options.grpcMaxMessageSize || 104857600; // 100MB default
+
     return new grpc.Client(
       options.grpcAddress!,
-      grpc.credentials.createInsecure()
+      grpc.credentials.createInsecure(),
+      {
+        "grpc.max_send_message_length": maxMessageSize,
+        "grpc.max_receive_message_length": maxMessageSize,
+      }
     );
   } catch (e) {
     console.error("Failed to create gRPC client", e);
