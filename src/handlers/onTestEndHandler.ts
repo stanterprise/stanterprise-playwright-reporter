@@ -15,6 +15,11 @@ import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { generateSuiteId } from "../utils";
 
+/**
+ * Constant for converting bytes to megabytes
+ */
+const BYTES_PER_MB = 1048576;
+
 export function handleOnTestEndEvent(
   test: TestCase,
   result: TestResult,
@@ -59,6 +64,10 @@ export function handleOnTestEndEvent(
     }),
   });
 
+  // Serialize once to capture payload size for potential error logging
+  const serializedPayload = request.serializeBinary();
+  const payloadSize = serializedPayload.length;
+
   // Fire-and-forget to avoid slowing tests
   reportUnary(
     options,
@@ -67,12 +76,9 @@ export function handleOnTestEndEvent(
     request,
     options.grpcTimeout
   ).catch((e) => {
-    const serializedSize = request.serializeBinary
-      ? request.serializeBinary().length
-      : 0;
     console.error(
       `Failed to report test end for "${test.title}" (payload size: ${(
-        serializedSize / 1048576
+        payloadSize / BYTES_PER_MB
       ).toFixed(2)}MB)`,
       e
     );

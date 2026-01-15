@@ -82,7 +82,7 @@ describe("attachmentProcessor", () => {
       expect(attachments).toHaveLength(2);
     });
 
-    it("should skip large attachment bodies that exceed size limit", () => {
+    it("should omit content for large attachment bodies that exceed size limit", () => {
       // Create a 5MB body
       const largeBody = Buffer.alloc(5 * 1024 * 1024);
       const result: Partial<TestResult> = {

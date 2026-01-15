@@ -7,6 +7,11 @@ import { common } from "@stanterprise/protobuf";
 const Attachment = common.v1.common.Attachment;
 
 /**
+ * Constant for converting bytes to megabytes
+ */
+const BYTES_PER_MB = 1048576;
+
+/**
  * Process Playwright test attachments into protobuf Attachment objects
  * @param result Test result containing attachments
  * @param maxAttachmentSize Maximum size for attachment content (default 10MB)
@@ -38,10 +43,10 @@ export function processAttachments(
       } else {
         // Skip large attachments without path - log warning
         console.warn(
-          `Attachment "${attachment.name}" (${(bodySize / 1048576).toFixed(
+          `Attachment "${attachment.name}" (${(bodySize / BYTES_PER_MB).toFixed(
             2
           )}MB) exceeds max size ` +
-            `(${(maxAttachmentSize / 1048576).toFixed(
+            `(${(maxAttachmentSize / BYTES_PER_MB).toFixed(
               2
             )}MB) and has no path. Skipping content.`
         );
