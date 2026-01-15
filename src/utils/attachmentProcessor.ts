@@ -8,9 +8,12 @@ const Attachment = common.v1.common.Attachment;
 
 /**
  * Process Playwright test attachments into protobuf Attachment objects
+ * @param result Test result containing attachments
+ * @param maxAttachmentSize Maximum size for attachment content (default 10MB)
  */
 export function processAttachments(
-  result: TestResult
+  result: TestResult,
+  maxAttachmentSize: number = 10485760 // 10MB default
 ): InstanceType<typeof Attachment>[] {
   const attachments: InstanceType<typeof Attachment>[] = [];
 
@@ -24,11 +27,26 @@ export function processAttachments(
       mime_type: attachment.contentType,
     });
 
-    // Use path as URI if available, otherwise use the body content
+    // Always prefer path if available to avoid large payloads
     if (attachment.path) {
       att.uri = attachment.path;
     } else if (attachment.body) {
-      att.content = attachment.body;
+      // Only include body content if it's within size limit
+      const bodySize = attachment.body.length;
+      if (bodySize <= maxAttachmentSize) {
+        att.content = attachment.body;
+      } else {
+        // Skip large attachments without path - log warning
+        console.warn(
+          `Attachment "${attachment.name}" (${(bodySize / 1048576).toFixed(
+            2
+          )}MB) exceeds max size ` +
+            `(${(maxAttachmentSize / 1048576).toFixed(
+              2
+            )}MB) and has no path. Skipping content.`
+        );
+        // Still add the attachment metadata without content
+      }
     }
 
     attachments.push(att);

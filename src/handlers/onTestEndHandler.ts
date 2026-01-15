@@ -7,6 +7,8 @@ import {
   extractErrorInfo,
   createTimestamp,
   createDuration,
+  buildTestMetadata,
+  toMetadataMap,
 } from "../utils";
 import { reportUnary } from "../client/grpcClient";
 import { StanterpriseReporterOptions } from "../types";
@@ -24,7 +26,10 @@ export function handleOnTestEndEvent(
   const testStatus = mapTestStatus(result.status);
 
   // Process attachments (screenshots, videos, etc.)
-  const attachments = processAttachments(result);
+  const attachments = processAttachments(
+    result,
+    options.maxAttachmentSize || 10485760
+  );
 
   // Extract error information if the test failed
   const { errorMessage, stackTrace, errors } = extractErrorInfo(result);
@@ -33,22 +38,7 @@ export function handleOnTestEndEvent(
   const suiteId = generateSuiteId(test.parent);
 
   // Build metadata from test annotations and result metadata
-  const metadata = new Map<string, string>();
-  test.annotations.forEach((annotation, index) => {
-    metadata.set(`annotation_${index}_type`, annotation.type);
-    if (annotation.description) {
-      metadata.set(`annotation_${index}_description`, annotation.description);
-    }
-  });
-  result.annotations.forEach((annotation, index) => {
-    metadata.set(`result_annotation_${index}_type`, annotation.type);
-    if (annotation.description) {
-      metadata.set(
-        `result_annotation_${index}_description`,
-        annotation.description
-      );
-    }
-  });
+  const metadata = buildTestMetadata(test, result);
 
   // Build and send the TestEnd event
   const request = new TestEndEventRequest({
@@ -64,7 +54,7 @@ export function handleOnTestEndEvent(
       error_message: errorMessage,
       stack_trace: stackTrace,
       errors: errors,
-      metadata: metadata,
+      metadata: toMetadataMap(metadata),
       tags: test.tags,
     }),
   });
@@ -76,5 +66,15 @@ export function handleOnTestEndEvent(
     "/testsystem.v1.observer.TestEventCollector/ReportTestEnd",
     request,
     options.grpcTimeout
-  ).catch((e) => console.error("Failed to report test end", e));
+  ).catch((e) => {
+    const serializedSize = request.serializeBinary
+      ? request.serializeBinary().length
+      : 0;
+    console.error(
+      `Failed to report test end for "${test.title}" (payload size: ${(
+        serializedSize / 1048576
+      ).toFixed(2)}MB)`,
+      e
+    );
+  });
 }

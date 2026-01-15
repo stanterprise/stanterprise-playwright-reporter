@@ -1,7 +1,10 @@
 /**
  * Unit tests for attachment processor
  */
-import { processAttachments, extractErrorInfo } from "../src/utils/attachmentProcessor";
+import {
+  processAttachments,
+  extractErrorInfo,
+} from "../src/utils/attachmentProcessor";
 import type { TestResult } from "@playwright/test/reporter";
 
 describe("attachmentProcessor", () => {
@@ -78,6 +81,74 @@ describe("attachmentProcessor", () => {
       const attachments = processAttachments(result as TestResult);
       expect(attachments).toHaveLength(2);
     });
+
+    it("should skip large attachment bodies that exceed size limit", () => {
+      // Create a 5MB body
+      const largeBody = Buffer.alloc(5 * 1024 * 1024);
+      const result: Partial<TestResult> = {
+        attachments: [
+          {
+            name: "large-video",
+            contentType: "video/webm",
+            body: largeBody,
+          },
+        ],
+      };
+
+      // Use 1MB limit
+      const attachments = processAttachments(
+        result as TestResult,
+        1 * 1024 * 1024
+      );
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("large-video");
+      // Content should be empty/not set when size limit is exceeded
+      expect(attachments[0].content).toEqual(new Uint8Array());
+      expect(attachments[0].uri).toBe("");
+    });
+
+    it("should include small attachment bodies within size limit", () => {
+      // Create a 500KB body
+      const smallBody = Buffer.alloc(500 * 1024);
+      const result: Partial<TestResult> = {
+        attachments: [
+          {
+            name: "small-screenshot",
+            contentType: "image/png",
+            body: smallBody,
+          },
+        ],
+      };
+
+      // Use 1MB limit
+      const attachments = processAttachments(
+        result as TestResult,
+        1 * 1024 * 1024
+      );
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("small-screenshot");
+      expect(attachments[0].content).toEqual(smallBody);
+    });
+
+    it("should prefer path over body even for small attachments", () => {
+      const smallBody = Buffer.alloc(100);
+      const result: Partial<TestResult> = {
+        attachments: [
+          {
+            name: "screenshot",
+            contentType: "image/png",
+            path: "/path/to/file.png",
+            body: smallBody,
+          },
+        ],
+      };
+
+      const attachments = processAttachments(result as TestResult);
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].uri).toBe("/path/to/file.png");
+      // Content should be empty when path is used
+      expect(attachments[0].content).toEqual(new Uint8Array());
+    });
   });
 
   describe("extractErrorInfo", () => {
@@ -86,7 +157,9 @@ describe("attachmentProcessor", () => {
         errors: [],
       };
 
-      const { errorMessage, stackTrace, errors } = extractErrorInfo(result as TestResult);
+      const { errorMessage, stackTrace, errors } = extractErrorInfo(
+        result as TestResult
+      );
       expect(errorMessage).toBe("");
       expect(stackTrace).toBe("");
       expect(errors).toHaveLength(0);
@@ -102,7 +175,9 @@ describe("attachmentProcessor", () => {
         ],
       };
 
-      const { errorMessage, stackTrace, errors } = extractErrorInfo(result as TestResult);
+      const { errorMessage, stackTrace, errors } = extractErrorInfo(
+        result as TestResult
+      );
       expect(errorMessage).toBe("Test failed");
       expect(stackTrace).toBe("Error: Test failed\n    at test.ts:10:5");
       expect(errors).toHaveLength(1);
@@ -123,7 +198,9 @@ describe("attachmentProcessor", () => {
         ],
       };
 
-      const { errorMessage, stackTrace, errors } = extractErrorInfo(result as TestResult);
+      const { errorMessage, stackTrace, errors } = extractErrorInfo(
+        result as TestResult
+      );
       expect(errorMessage).toBe("Error 1\nError 2");
       expect(stackTrace).toBe("Stack 1\nStack 2");
       expect(errors).toHaveLength(2);
@@ -139,7 +216,9 @@ describe("attachmentProcessor", () => {
         ],
       };
 
-      const { errorMessage, stackTrace, errors } = extractErrorInfo(result as TestResult);
+      const { errorMessage, stackTrace, errors } = extractErrorInfo(
+        result as TestResult
+      );
       expect(errorMessage).toBe("");
       expect(stackTrace).toBe("");
       expect(errors).toHaveLength(1);
