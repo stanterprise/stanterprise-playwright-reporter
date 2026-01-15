@@ -65,9 +65,7 @@ export function handleOnTestEndEvent(
   });
 
   // Serialize once to capture payload size for potential error logging
-  const serializedPayload = request.serializeBinary
-    ? request.serializeBinary()
-    : new Uint8Array(0);
+  const serializedPayload = request.serializeBinary();
   const payloadSize = serializedPayload.length;
 
   // Fire-and-forget to avoid slowing tests
