@@ -54,6 +54,61 @@ describe("metadataHelpers", () => {
         annotation_0_type: "slow",
       });
     });
+
+    it("should truncate very large annotation descriptions", () => {
+      // Create a description that's 200KB (over the 100KB limit)
+      const largeDescription = "x".repeat(200000);
+      const annotations = [{ type: "debug", description: largeDescription }];
+
+      const metadata = buildAnnotationsMetadata(annotations);
+
+      expect(metadata).toHaveProperty("annotation_0_type", "debug");
+      expect(metadata).toHaveProperty("annotation_0_description");
+      expect(metadata.annotation_0_description).toContain("[TRUNCATED:");
+      expect(metadata.annotation_0_description.length).toBeLessThan(102500);
+    });
+
+    it("should handle multiple large annotations and respect total size limit", () => {
+      // Create multiple annotations that would exceed 1MB total
+      const largeDescription = "x".repeat(300000); // 300KB each
+      const annotations = [
+        { type: "debug1", description: largeDescription },
+        { type: "debug2", description: largeDescription },
+        { type: "debug3", description: largeDescription },
+        { type: "debug4", description: largeDescription },
+      ];
+
+      const metadata = buildAnnotationsMetadata(annotations);
+
+      // Should have all type keys
+      expect(metadata).toHaveProperty("annotation_0_type");
+      expect(metadata).toHaveProperty("annotation_1_type");
+      expect(metadata).toHaveProperty("annotation_2_type");
+      expect(metadata).toHaveProperty("annotation_3_type");
+
+      // Some descriptions should be truncated or skipped
+      const totalSize = Object.values(metadata).reduce(
+        (sum, val) => sum + val.length,
+        0
+      );
+      expect(totalSize).toBeLessThanOrEqual(1048576); // 1MB limit
+    });
+
+    it("should preserve small annotations without modification", () => {
+      const annotations = [
+        { type: "slow", description: "This test is slow" },
+        { type: "retry", description: "Retry on failure" },
+      ];
+
+      const metadata = buildAnnotationsMetadata(annotations);
+
+      expect(metadata).toEqual({
+        annotation_0_type: "slow",
+        annotation_0_description: "This test is slow",
+        annotation_1_type: "retry",
+        annotation_1_description: "Retry on failure",
+      });
+    });
   });
 
   describe("buildTestMetadata", () => {
