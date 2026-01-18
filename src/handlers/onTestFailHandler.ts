@@ -14,7 +14,7 @@ export function handleOnTestFailEvent(
   result: TestResult,
   runId: string,
   grpcClient: grpc.Client,
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
 ) {
   // Extract failure details
   const { errorMessage: failureMessage, stackTrace } = extractErrorInfo(result);
@@ -30,6 +30,7 @@ export function handleOnTestFailEvent(
     stack_trace: stackTrace,
     timestamp: createTimestampFromMs(Date.now()),
     attachments: attachments,
+    retry_index: result.retry,
   });
 
   // Fire-and-forget to avoid slowing tests
@@ -38,6 +39,6 @@ export function handleOnTestFailEvent(
     grpcClient,
     "/testsystem.v1.observer.TestEventCollector/ReportTestFailure",
     request,
-    options.grpcTimeout
+    options.grpcTimeout,
   ).catch((e) => console.error("Failed to report test failure", e));
 }
