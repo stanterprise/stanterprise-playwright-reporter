@@ -240,6 +240,10 @@ export default class StanterpriseReporter implements Reporter {
     test: void | TestCase,
     result: void | TestResult,
   ): void {
-    console.log(`Stanterprise Reporter: Standard output - ${chunk.toString()}`);
+    if (this.options.verbose) {
+      console.log(
+        `Stanterprise Reporter: Standard output - ${chunk.toString()}`,
+      );
+    }
   }
 }
