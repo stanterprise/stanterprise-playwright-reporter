@@ -55,20 +55,20 @@ export default class StanterpriseReporter implements Reporter {
       this.grpcClient = getClient(this.options);
       if (!this.grpcClient) {
         console.warn(
-          `Stanterprise Reporter: Failed to create gRPC client. Disabling gRPC reporting.`
+          `Stanterprise Reporter: Failed to create gRPC client. Disabling gRPC reporting.`,
         );
         this.options.grpcEnabled = false;
       }
     } else {
       if (this.options.verbose) {
         console.log(
-          "Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false"
+          "Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false",
         );
       }
     }
     if (this.options.verbose) {
       console.log(
-        `Stanterprise Reporter: Test run started with ID: ${this.runId}`
+        `Stanterprise Reporter: Test run started with ID: ${this.runId}`,
       );
       console.log(`Number of tests: ${suite.allTests().length}`);
       console.log(`Run started at: ${this.runStartTime.toISOString()}`);
@@ -80,14 +80,14 @@ export default class StanterpriseReporter implements Reporter {
         process.env.STANTERPRISE_TEST_RUN_NAME || "Playwright Test Run",
         this.runId,
         this.grpcClient!,
-        this.options
+        this.options,
       );
     }
   }
 
   async onExit(): Promise<void> {
     console.log(
-      `Stanterprise Reporter: Test run completed - Run ID: ${this.runId}`
+      `Stanterprise Reporter: Test run completed - Run ID: ${this.runId}`,
     );
     // Cleanup gRPC client
     try {
@@ -95,22 +95,22 @@ export default class StanterpriseReporter implements Reporter {
     } catch (e) {
       console.error(
         "Stanterprise Reporter: Error during gRPC client cleanup in onExit:",
-        e
+        e,
       );
     }
   }
 
   onEnd(
-    result: FullResult
+    result: FullResult,
   ): Promise<{ status?: FullResult["status"] } | undefined | void> | void {
     const runDuration = Date.now() - this.runStartTime.getTime();
     if (this.options.verbose) {
       console.log(
-        `Stanterprise Reporter: Test run ended - Run ID: ${this.runId}`
+        `Stanterprise Reporter: Test run ended - Run ID: ${this.runId}`,
       );
       console.log(`Final result: ${result.status}`);
       console.log(
-        `Run duration: ${runDuration}ms (Playwright duration: ${result.duration}ms)`
+        `Run duration: ${runDuration}ms (Playwright duration: ${result.duration}ms)`,
       );
       console.log(`Run start time: ${this.runStartTime.toISOString()}`);
       console.log(`Playwright start time: ${result.startTime.toISOString()}`);
@@ -137,7 +137,7 @@ export default class StanterpriseReporter implements Reporter {
         result,
         this.runId,
         this.grpcClient!,
-        this.options
+        this.options,
       );
     }
   }
@@ -145,7 +145,7 @@ export default class StanterpriseReporter implements Reporter {
   async onStepBegin(
     test: TestCase,
     result: TestResult,
-    step: TestStep
+    step: TestStep,
   ): Promise<void> {
     if (this.options.verbose) {
       console.log(`Stanterprise Reporter: Step started - ${step.title}`);
@@ -158,7 +158,7 @@ export default class StanterpriseReporter implements Reporter {
         step,
         this.runId,
         this.grpcClient!,
-        this.options
+        this.options,
       );
     }
   }
@@ -175,7 +175,7 @@ export default class StanterpriseReporter implements Reporter {
         step,
         this.runId,
         this.grpcClient!,
-        this.options
+        this.options,
       );
     }
   }
@@ -192,7 +192,7 @@ export default class StanterpriseReporter implements Reporter {
         result,
         this.runId,
         this.grpcClient!,
-        this.options
+        this.options,
       );
     }
   }
@@ -207,14 +207,14 @@ export default class StanterpriseReporter implements Reporter {
         result,
         this.runId,
         this.grpcClient!,
-        this.options
+        this.options,
       );
     }
   }
 
   onError(error: TestError): void {
     console.error(
-      "Stanterprise Reporter: An error occurred during the test run"
+      "Stanterprise Reporter: An error occurred during the test run",
     );
     console.error(`Error: ${error.message}`);
     if (error.stack) {
@@ -228,18 +228,22 @@ export default class StanterpriseReporter implements Reporter {
   onStdErr(
     chunk: string | Buffer,
     test: void | TestCase,
-    result: void | TestResult
+    result: void | TestResult,
   ): void {
     console.error(
-      `Stanterprise Reporter: Standard error output - ${chunk.toString()}`
+      `Stanterprise Reporter: Standard error output - ${chunk.toString()}`,
     );
   }
 
   onStdOut(
     chunk: string | Buffer,
     test: void | TestCase,
-    result: void | TestResult
+    result: void | TestResult,
   ): void {
-    // console.log(`Stanterprise Reporter: Standard output - ${chunk.toString()}`);
+    if (this.options.verbose) {
+      console.log(
+        `Stanterprise Reporter: Standard output - ${chunk.toString()}`,
+      );
+    }
   }
 }

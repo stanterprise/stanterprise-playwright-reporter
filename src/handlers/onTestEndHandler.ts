@@ -25,7 +25,7 @@ export function handleOnTestEndEvent(
   result: TestResult,
   runId: string,
   client: grpc.Client,
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
 ) {
   // Map Playwright test status to protobuf TestStatus
   const testStatus = mapTestStatus(result.status);
@@ -33,7 +33,7 @@ export function handleOnTestEndEvent(
   // Process attachments (screenshots, videos, etc.)
   const attachments = processAttachments(
     result,
-    options.maxAttachmentSize || 10485760
+    options.maxAttachmentSize || 10485760,
   );
 
   // Extract error information if the test failed
@@ -61,6 +61,8 @@ export function handleOnTestEndEvent(
       errors: errors,
       metadata: toMetadataMap(metadata),
       tags: test.tags,
+      retry_index: result.retry,
+      retry_count: test.retries,
     }),
   });
 
@@ -77,7 +79,7 @@ export function handleOnTestEndEvent(
         `Attachments: ${attachments.length}, Metadata keys: ${
           Object.keys(metadata).length
         }, ` +
-        `Error length: ${errorMessage.length + stackTrace.length} bytes`
+        `Error length: ${errorMessage.length + stackTrace.length} bytes`,
     );
   }
 
@@ -87,13 +89,13 @@ export function handleOnTestEndEvent(
     client,
     "/testsystem.v1.observer.TestEventCollector/ReportTestEnd",
     request,
-    options.grpcTimeout
+    options.grpcTimeout,
   ).catch((e) => {
     console.error(
       `Failed to report test end for "${test.title}" (payload size: ${(
         payloadSize / BYTES_PER_MB
       ).toFixed(2)}MB)`,
-      e
+      e,
     );
   });
 }
