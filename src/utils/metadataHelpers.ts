@@ -20,7 +20,7 @@ const MAX_TOTAL_METADATA_SIZE = 1048576;
  * @param maxLength Maximum length (default 100KB)
  * @returns Truncated string with warning suffix if truncated
  */
-function truncateValue(
+export function truncateValue(
   value: string,
   maxLength: number = MAX_METADATA_VALUE_LENGTH
 ): string {

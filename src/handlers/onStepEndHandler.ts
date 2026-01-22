@@ -7,6 +7,7 @@ import {
   mapStepStatus,
   buildStepMetadata,
   toMetadataMap,
+  truncateValue,
 } from "../utils";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
@@ -32,19 +33,7 @@ export function handleOnStepEndEvent(
   // Extract comprehensive error details if present
   const errorMessage = step.error?.message || "";
   const errorStack = step.error?.stack || "";
-  const rawErrorValue = step.error?.value;
-  let errorValue: string = "";
-  if (typeof rawErrorValue === "string") {
-    errorValue = rawErrorValue;
-  } else if (rawErrorValue instanceof Error) {
-    errorValue = `${rawErrorValue.name}: ${rawErrorValue.message}`;
-  } else if (rawErrorValue !== undefined && rawErrorValue !== null) {
-    try {
-      errorValue = JSON.stringify(rawErrorValue);
-    } catch {
-      errorValue = String(rawErrorValue);
-    }
-  }
+  const errorValue = step.error?.value || "";
   const errorSnippet = step.error?.snippet || "";
   const errorLocation = step.error?.location
     ? `${step.error.location.file}:${step.error.location.line}:${step.error.location.column}`
@@ -52,10 +41,10 @@ export function handleOnStepEndEvent(
 
   // Combine all error information into metadata for comprehensive error tracking
   const errorMetadata: Record<string, string> = {};
-  if (errorStack) errorMetadata.error_stack = errorStack;
-  if (errorValue) errorMetadata.error_value = errorValue;
-  if (errorSnippet) errorMetadata.error_snippet = errorSnippet;
-  if (errorLocation) errorMetadata.error_location = errorLocation;
+  if (errorStack) errorMetadata.error_stack = truncateValue(errorStack);
+  if (errorValue) errorMetadata.error_value = truncateValue(errorValue);
+  if (errorSnippet) errorMetadata.error_snippet = truncateValue(errorSnippet);
+  if (errorLocation) errorMetadata.error_location = truncateValue(errorLocation);
 
   // Build and send the StepEnd event
   const request = new StepEndEventRequest({
