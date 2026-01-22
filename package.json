@@ -1,6 +1,6 @@
 {
   "name": "@stanterprise/playwright-reporter",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "Custom Playwright test reporter that sends test results to Stanterprise via gRPC",
   "homepage": "https://github.com/stanterprise/stanterprise-playwright-reporter#readme",
   "bugs": {
@@ -44,7 +44,7 @@
   "devDependencies": {
     "@playwright/test": "^1.52.0",
     "@types/jest": "^29.5.14",
-    "@types/node": "^22.15.29",
+    "@types/node": "^22.19.7",
     "jest": "^29.7.0",
     "ts-jest": "^29.4.5",
     "typescript": "^5.9.3"

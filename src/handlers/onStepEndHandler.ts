@@ -7,6 +7,7 @@ import {
   mapStepStatus,
   buildStepMetadata,
   toMetadataMap,
+  truncateValue,
 } from "../utils";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
@@ -19,7 +20,7 @@ export function handleOnStepEndEvent(
   step: TestStep,
   runId: string,
   client: grpc.Client,
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
 ) {
   // Map step error to status
   const stepStatus = mapStepStatus(!!step.error);
@@ -28,6 +29,22 @@ export function handleOnStepEndEvent(
   const metadata = buildStepMetadata(step);
 
   const stepId = generateStepId(step, test);
+
+  // Extract comprehensive error details if present
+  const errorMessage = step.error?.message || "";
+  const errorStack = step.error?.stack || "";
+  const errorValue = step.error?.value || "";
+  const errorSnippet = step.error?.snippet || "";
+  const errorLocation = step.error?.location
+    ? `${step.error.location.file}:${step.error.location.line}:${step.error.location.column}`
+    : "";
+
+  // Combine all error information into metadata for comprehensive error tracking
+  const errorMetadata: Record<string, string> = {};
+  if (errorStack) errorMetadata.error_stack = truncateValue(errorStack);
+  if (errorValue) errorMetadata.error_value = truncateValue(errorValue);
+  if (errorSnippet) errorMetadata.error_snippet = truncateValue(errorSnippet);
+  if (errorLocation) errorMetadata.error_location = truncateValue(errorLocation);
 
   // Build and send the StepEnd event
   const request = new StepEndEventRequest({
@@ -40,12 +57,12 @@ export function handleOnStepEndEvent(
       start_time: createTimestamp(step.startTime),
       duration: createDuration(step.duration),
       status: stepStatus,
-      error: step.error ? step.error.message || "" : "",
-      errors: step.error ? [step.error.message || ""] : [],
+      error: errorMessage,
+      errors: errorMessage ? [errorMessage] : [],
       location: step.location
         ? `${step.location.file}:${step.location.line}:${step.location.column}`
         : "",
-      metadata: toMetadataMap(metadata),
+      metadata: toMetadataMap({ ...metadata, ...errorMetadata }),
       parent_step_id: step.parent
         ? generateStepId(step.parent, test)
         : undefined,
@@ -60,6 +77,6 @@ export function handleOnStepEndEvent(
     client,
     "/testsystem.v1.observer.TestEventCollector/ReportStepEnd",
     request,
-    options.grpcTimeout
+    options.grpcTimeout,
   ).catch((e) => console.error("Failed to report step end", e));
 }
