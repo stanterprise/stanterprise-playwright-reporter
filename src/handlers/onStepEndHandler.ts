@@ -32,7 +32,19 @@ export function handleOnStepEndEvent(
   // Extract comprehensive error details if present
   const errorMessage = step.error?.message || "";
   const errorStack = step.error?.stack || "";
-  const errorValue = step.error?.value || "";
+  const rawErrorValue = step.error?.value;
+  let errorValue: string = "";
+  if (typeof rawErrorValue === "string") {
+    errorValue = rawErrorValue;
+  } else if (rawErrorValue instanceof Error) {
+    errorValue = `${rawErrorValue.name}: ${rawErrorValue.message}`;
+  } else if (rawErrorValue !== undefined && rawErrorValue !== null) {
+    try {
+      errorValue = JSON.stringify(rawErrorValue);
+    } catch {
+      errorValue = String(rawErrorValue);
+    }
+  }
   const errorSnippet = step.error?.snippet || "";
   const errorLocation = step.error?.location
     ? `${step.error.location.file}:${step.error.location.line}:${step.error.location.column}`
