@@ -93,6 +93,80 @@ npx playwright test
 | `maxAttachmentSize`  | number  | `10485760`        | Max attachment content size in bytes (10MB default) |
 | `verbose`            | boolean | `false`           | Enable verbose logging                              |
 
+## Sharding Support
+
+The reporter automatically detects and reports when tests are running in sharded mode. When sharding is configured, the reporter includes the following metadata in test run events:
+
+- `shard.current`: The current shard number (1-based)
+- `shard.total`: The total number of shards
+
+### Configuring Sharding
+
+In your `playwright.config.ts`:
+
+```typescript
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  shard: { total: 5, current: 1 },
+  reporter: [["stanterprise-playwright-reporter"]],
+});
+```
+
+Or via CLI:
+
+```bash
+npx playwright test --shard=1/5
+npx playwright test --shard=2/5
+# ... etc
+```
+
+### Aggregating Results Across Shards
+
+**Important:** To have a complete set of tests accumulated in the observability server, you must specify the same `STANTERPRISE_RUN_ID` environment variable for all shards. This ensures that results from all shards are associated with the same test run.
+
+```bash
+# Set the same run ID for all shards
+export STANTERPRISE_RUN_ID="my-test-run-123"
+
+# Run all shards with the same run ID
+npx playwright test --shard=1/5
+npx playwright test --shard=2/5
+npx playwright test --shard=3/5
+npx playwright test --shard=4/5
+npx playwright test --shard=5/5
+```
+
+In CI/CD environments, you can use a unique identifier from your CI system:
+
+```bash
+# GitHub Actions example
+STANTERPRISE_RUN_ID="${GITHUB_RUN_ID}" npx playwright test --shard=1/5
+
+# GitLab CI example
+STANTERPRISE_RUN_ID="${CI_PIPELINE_ID}" npx playwright test --shard=1/5
+
+# Jenkins example
+STANTERPRISE_RUN_ID="${BUILD_ID}" npx playwright test --shard=1/5
+```
+
+Without a shared `STANTERPRISE_RUN_ID`, each shard will generate its own unique run ID, and the results will be reported as separate test runs rather than a single aggregated run.
+
+The shard information is automatically included in the metadata sent to the server, allowing you to:
+
+- Track which tests ran on which shard
+- Aggregate results from multiple shards
+- Debug shard-specific issues
+
+When verbose logging is enabled, you'll see shard information in the console output:
+
+```
+Stanterprise Reporter: Test run started with ID: 123e4567-e89b-12d3-a456-426614174000
+Number of tests: 42
+Run started at: 2026-01-25T10:30:00.000Z
+Shard: 1 of 5
+```
+
 ## What Gets Reported
 
 ### Test Events
@@ -240,7 +314,6 @@ This error can also occur when test event payloads exceed the gRPC message size 
    ```
 
 2. **Reduce attachment sizes**:
-
    - Configure Playwright to save attachments to disk instead of embedding them
    - The reporter automatically uses file paths when available instead of content
 
