@@ -18,7 +18,7 @@ export function handleOnBeginEvent(
   name: string,
   runId: string,
   client: grpc.Client,
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
 ) {
   // Report root suite and all child suites recursively
   // Convert all metadata values to strings for protobuf compatibility
@@ -34,6 +34,12 @@ export function handleOnBeginEvent(
     metadata[key] = value;
   });
 
+  // Add shard information if present
+  if (config.shard) {
+    metadata["shard.current"] = String(config.shard.current);
+    metadata["shard.total"] = String(config.shard.total);
+  }
+
   const request = new ReportRunStartEventRequest({
     run_id: runId,
     name: name,
@@ -47,11 +53,11 @@ export function handleOnBeginEvent(
     client,
     "/testsystem.v1.observer.TestEventCollector/ReportRunStart",
     request,
-    options.grpcTimeout
+    options.grpcTimeout,
   ).catch((e) => {
     const details = e instanceof Error ? `${e.message}` : String(e);
     console.warn(
-      `onBegin. gRPC disabled for the remainder of the run. Address=${options.grpcAddress}. Details: ${details}`
+      `onBegin. gRPC disabled for the remainder of the run. Address=${options.grpcAddress}. Details: ${details}`,
     );
   });
 }
@@ -113,7 +119,7 @@ function mapSingleSuite(suite: Suite, runId: string): TestSuiteRun {
           status: TestStatus.NOT_RUN,
           retry_count: test.retries,
           retry_index: 0,
-        })
+        }),
     ),
     test_case_ids: suite.tests.map((test) => test.id),
     type: type,

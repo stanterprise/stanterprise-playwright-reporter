@@ -72,6 +72,9 @@ export default class StanterpriseReporter implements Reporter {
       );
       console.log(`Number of tests: ${suite.allTests().length}`);
       console.log(`Run started at: ${this.runStartTime.toISOString()}`);
+      if (config.shard) {
+        console.log(`Shard: ${config.shard.current} of ${config.shard.total}`);
+      }
     }
     if (this.options.grpcEnabled) {
       handleOnBeginEvent(
