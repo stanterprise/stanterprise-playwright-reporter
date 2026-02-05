@@ -9,6 +9,7 @@ import type {
   TestError,
 } from "@playwright/test/reporter";
 import * as grpc from "@grpc/grpc-js";
+import { mkdir } from "fs/promises";
 import { randomUUID } from "crypto";
 import { StanterpriseReporterOptions } from "./types";
 import defineOptions from "./utils/optionsMapper";
@@ -50,7 +51,24 @@ export default class StanterpriseReporter implements Reporter {
     this.runId = process.env.STANTERPRISE_RUN_ID || randomUUID();
   }
 
-  onBegin(config: FullConfig, suite: Suite): void {
+  async onBegin(config: FullConfig, suite: Suite): Promise<void> {
+    const outputDirs = new Set<string>();
+    for (const project of config.projects ?? []) {
+      if (project.outputDir) {
+        outputDirs.add(project.outputDir);
+      }
+    }
+
+    for (const outputDir of outputDirs) {
+      try {
+        await mkdir(outputDir, { recursive: true });
+      } catch (error) {
+        console.error(
+          `Stanterprise Reporter: Failed to create output directory: ${outputDir}`,
+          error,
+        );
+      }
+    }
     // Lazily create the client if enabled.
     if (this.options.grpcEnabled) {
       this.grpcClient = getClient(this.options);
