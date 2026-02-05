@@ -31,6 +31,30 @@ export interface StanterpriseReporterOptions {
   grpcMaxMessageSize?: number;
 
   /**
+   * Number of retry attempts for gRPC calls
+   * @default 3
+   */
+  grpcRetryAttempts?: number;
+
+  /**
+   * Base delay for gRPC retry backoff in milliseconds
+   * @default 50
+   */
+  grpcRetryBaseDelayMs?: number;
+
+  /**
+   * Maximum delay for gRPC retry backoff in milliseconds
+   * @default 300
+   */
+  grpcRetryMaxDelayMs?: number;
+
+  /**
+   * Jitter ratio for gRPC retry delays (0-1)
+   * @default 0.2
+   */
+  grpcRetryJitter?: number;
+
+  /**
    * Maximum size for attachment content in bytes
    * Attachments larger than this will only include the path reference
    * @default 10485760 (10MB)

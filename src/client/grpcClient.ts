@@ -2,7 +2,7 @@ import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 
 export default function getClient(
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
 ): grpc.Client | null {
   try {
     const maxMessageSize = options.grpcMaxMessageSize || 104857600; // 100MB default
@@ -13,7 +13,7 @@ export default function getClient(
       {
         "grpc.max_send_message_length": maxMessageSize,
         "grpc.max_receive_message_length": maxMessageSize,
-      }
+      },
     );
   } catch (e) {
     console.error("Failed to create gRPC client", e);
@@ -30,11 +30,16 @@ export async function reportUnary(
     serialize?: (w?: any) => Uint8Array;
     serializeBinary?: () => Uint8Array;
   },
-  deadlineMs: number = 1000
+  deadlineMs: number = 1000,
 ): Promise<Buffer> {
   if (!options.grpcEnabled || !grpcClient) {
     return Buffer.alloc(0);
   }
+
+  const retryAttempts = Math.max(1, options.grpcRetryAttempts ?? 1);
+  const baseDelayMs = Math.max(0, options.grpcRetryBaseDelayMs ?? 0);
+  const maxDelayMs = Math.max(0, options.grpcRetryMaxDelayMs ?? 0);
+  const jitter = Math.min(Math.max(0, options.grpcRetryJitter ?? 0), 1);
 
   const reqSerialize = (arg: unknown): Buffer => {
     const m = arg as
@@ -46,46 +51,89 @@ export async function reportUnary(
     const bytes = m?.serializeBinary
       ? m.serializeBinary()
       : m?.serialize
-      ? m.serialize()
-      : new Uint8Array(0);
+        ? m.serialize()
+        : new Uint8Array(0);
     return Buffer.from(bytes);
   };
 
   const resDeserialize = (bytes: Buffer): Buffer => bytes;
 
   const metadata = new grpc.Metadata();
-  const callOptions: grpc.CallOptions = {
-    deadline: new Date(Date.now() + deadlineMs),
+
+  const makeUnaryRequestOnce = (): Promise<Buffer> => {
+    const callOptions: grpc.CallOptions = {
+      deadline: new Date(Date.now() + deadlineMs),
+    };
+
+    return new Promise<Buffer>((resolve, reject) => {
+      try {
+        (
+          grpcClient as unknown as {
+            makeUnaryRequest: (
+              path: string,
+              serialize: (arg: unknown) => Buffer,
+              deserialize: (arg: Buffer) => Buffer,
+              arg: unknown,
+              metadata: grpc.Metadata,
+              options: grpc.CallOptions,
+              callback: (err: grpc.ServiceError | null, res: Buffer) => void,
+            ) => void;
+          }
+        ).makeUnaryRequest(
+          path,
+          reqSerialize,
+          resDeserialize,
+          message,
+          metadata,
+          callOptions,
+          (err, response) => {
+            if (err) return reject(err);
+            resolve(response);
+          },
+        );
+      } catch (e) {
+        reject(e);
+      }
+    });
   };
 
-  return new Promise<Buffer>((resolve, reject) => {
+  for (let attempt = 1; attempt <= retryAttempts; attempt += 1) {
     try {
-      (
-        grpcClient as unknown as {
-          makeUnaryRequest: (
-            path: string,
-            serialize: (arg: unknown) => Buffer,
-            deserialize: (arg: Buffer) => Buffer,
-            arg: unknown,
-            metadata: grpc.Metadata,
-            options: grpc.CallOptions,
-            callback: (err: grpc.ServiceError | null, res: Buffer) => void
-          ) => void;
-        }
-      ).makeUnaryRequest(
-        path,
-        reqSerialize,
-        resDeserialize,
-        message,
-        metadata,
-        callOptions,
-        (err, response) => {
-          if (err) return reject(err);
-          resolve(response);
-        }
+      return await makeUnaryRequestOnce();
+    } catch (error) {
+      const isLastAttempt = attempt >= retryAttempts;
+      if (!isRetryableGrpcError(error) || isLastAttempt) {
+        throw error;
+      }
+
+      const baseDelay = Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
+      const jitterFactor = jitter === 0 ? 0 : (Math.random() * 2 - 1) * jitter;
+      const delay = Math.max(
+        0,
+        Math.round(baseDelay + baseDelay * jitterFactor),
       );
-    } catch (e) {
-      reject(e);
+      if (delay > 0) {
+        await sleep(delay);
+      }
     }
-  });
+  }
+
+  return Buffer.alloc(0);
+}
+
+function isRetryableGrpcError(error: unknown): boolean {
+  const serviceError = error as grpc.ServiceError | undefined;
+  if (!serviceError || typeof serviceError.code !== "number") {
+    return false;
+  }
+
+  return (
+    serviceError.code === grpc.status.UNAVAILABLE ||
+    serviceError.code === grpc.status.DEADLINE_EXCEEDED ||
+    serviceError.code === grpc.status.RESOURCE_EXHAUSTED
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

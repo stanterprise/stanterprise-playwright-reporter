@@ -1,4 +1,5 @@
 import { StanterpriseReporterOptions } from "../types";
+import { resolveReporterOptions } from "../config";
 
 /**
  * Define and map reporter options from provided options and environment variables. Apply defaults where necessary.
@@ -6,18 +7,7 @@ import { StanterpriseReporterOptions } from "../types";
  * @returns Mapped and completed StanterpriseReporterOptions
  */
 export default function defineOptions(
-  providedOptions: StanterpriseReporterOptions
+  providedOptions: StanterpriseReporterOptions,
 ): StanterpriseReporterOptions {
-  const result: StanterpriseReporterOptions = {};
-  result.grpcAddress =
-    providedOptions.grpcAddress ||
-    process.env.STANTERPRISE_GRPC_ADDRESS ||
-    "localhost:50051";
-  result.grpcEnabled =
-    providedOptions.grpcEnabled ??
-    (process.env.STANTERPRISE_GRPC_ENABLED || "true").toLowerCase() !== "false";
-  result.grpcTimeout = providedOptions.grpcTimeout || 1000;
-  result.verbose = providedOptions.verbose || false;
-
-  return result;
+  return resolveReporterOptions(providedOptions);
 }

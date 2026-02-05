@@ -12,6 +12,7 @@ import * as grpc from "@grpc/grpc-js";
 import { randomUUID } from "crypto";
 import { StanterpriseReporterOptions } from "./types";
 import defineOptions from "./utils/optionsMapper";
+import { createReporterLogger, ReporterLogger } from "./utils/logger";
 import getClient from "./client/grpcClient";
 import {
   handleOnBeginEvent,
@@ -28,6 +29,7 @@ export default class StanterpriseReporter implements Reporter {
   // Generic gRPC client (we call unary methods by path directly).
   private grpcClient: grpc.Client | null = null;
   private options: StanterpriseReporterOptions = {};
+  private logger: ReporterLogger;
 
   // Generate a unique run ID for this test run
   private runId: string = "";
@@ -35,15 +37,14 @@ export default class StanterpriseReporter implements Reporter {
 
   constructor(options: StanterpriseReporterOptions = {}) {
     this.options = defineOptions(options);
+    this.logger = createReporterLogger(this.options);
 
-    if (this.options.verbose) {
-      console.log("Stanterprise Reporter: Initialized with options:", {
-        grpcAddress: this.options.grpcAddress,
-        grpcEnabled: this.options.grpcEnabled,
-        grpcTimeout: this.options.grpcTimeout,
-        verbose: this.options.verbose,
-      });
-    }
+    this.logger.verbose("Stanterprise Reporter: Initialized with options:", {
+      grpcAddress: this.options.grpcAddress,
+      grpcEnabled: this.options.grpcEnabled,
+      grpcTimeout: this.options.grpcTimeout,
+      verbose: this.options.verbose,
+    });
 
     // Generate a UUID for runId
     this.runId = process.env.STANTERPRISE_RUN_ID || randomUUID();
@@ -60,21 +61,19 @@ export default class StanterpriseReporter implements Reporter {
         this.options.grpcEnabled = false;
       }
     } else {
-      if (this.options.verbose) {
-        console.log(
-          "Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false",
-        );
-      }
-    }
-    if (this.options.verbose) {
-      console.log(
-        `Stanterprise Reporter: Test run started with ID: ${this.runId}`,
+      this.logger.verbose(
+        "Stanterprise Reporter: gRPC disabled via STANTERPRISE_GRPC_ENABLED=false",
       );
-      console.log(`Number of tests: ${suite.allTests().length}`);
-      console.log(`Run started at: ${this.runStartTime.toISOString()}`);
-      if (config.shard) {
-        console.log(`Shard: ${config.shard.current} of ${config.shard.total}`);
-      }
+    }
+    this.logger.verbose(
+      `Stanterprise Reporter: Test run started with ID: ${this.runId}`,
+    );
+    this.logger.verbose(`Number of tests: ${suite.allTests().length}`);
+    this.logger.verbose(`Run started at: ${this.runStartTime.toISOString()}`);
+    if (config.shard) {
+      this.logger.verbose(
+        `Shard: ${config.shard.current} of ${config.shard.total}`,
+      );
     }
     if (this.options.grpcEnabled) {
       handleOnBeginEvent(
@@ -89,7 +88,7 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   async onExit(): Promise<void> {
-    console.log(
+    this.logger.verbose(
       `Stanterprise Reporter: Test run completed - Run ID: ${this.runId}`,
     );
     // Cleanup gRPC client
@@ -107,17 +106,17 @@ export default class StanterpriseReporter implements Reporter {
     result: FullResult,
   ): Promise<{ status?: FullResult["status"] } | undefined | void> | void {
     const runDuration = Date.now() - this.runStartTime.getTime();
-    if (this.options.verbose) {
-      console.log(
-        `Stanterprise Reporter: Test run ended - Run ID: ${this.runId}`,
-      );
-      console.log(`Final result: ${result.status}`);
-      console.log(
-        `Run duration: ${runDuration}ms (Playwright duration: ${result.duration}ms)`,
-      );
-      console.log(`Run start time: ${this.runStartTime.toISOString()}`);
-      console.log(`Playwright start time: ${result.startTime.toISOString()}`);
-    }
+    this.logger.verbose(
+      `Stanterprise Reporter: Test run ended - Run ID: ${this.runId}`,
+    );
+    this.logger.verbose(`Final result: ${result.status}`);
+    this.logger.verbose(
+      `Run duration: ${runDuration}ms (Playwright duration: ${result.duration}ms)`,
+    );
+    this.logger.verbose(`Run start time: ${this.runStartTime.toISOString()}`);
+    this.logger.verbose(
+      `Playwright start time: ${result.startTime.toISOString()}`,
+    );
 
     if (this.options.grpcEnabled) {
       handleOnEndEvent(result, this.runId, this.grpcClient!, this.options);
@@ -129,11 +128,9 @@ export default class StanterpriseReporter implements Reporter {
   onTestBegin(test: TestCase, result: TestResult): void {
     // Create unique test execution ID combining run ID and test ID
 
-    if (this.options.verbose) {
-      console.log(`Stanterprise Reporter: Test started - ${test.title}`);
-      console.log(`  Run ID: ${this.runId}`);
-      console.log(`  Test ID: ${test.id}`);
-    }
+    this.logger.verbose(`Stanterprise Reporter: Test started - ${test.title}`);
+    this.logger.verbose(`  Run ID: ${this.runId}`);
+    this.logger.verbose(`  Test ID: ${test.id}`);
     if (this.options.grpcEnabled) {
       handleOnTestBeginEvent(
         test,
@@ -150,10 +147,8 @@ export default class StanterpriseReporter implements Reporter {
     result: TestResult,
     step: TestStep,
   ): Promise<void> {
-    if (this.options.verbose) {
-      console.log(`Stanterprise Reporter: Step started - ${step.title}`);
-      console.log(`  Category: ${step.category}`);
-    }
+    this.logger.verbose(`Stanterprise Reporter: Step started - ${step.title}`);
+    this.logger.verbose(`  Category: ${step.category}`);
     if (this.options.grpcEnabled) {
       handleOnStepBeginEvent(
         test,
@@ -167,10 +162,8 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   onStepEnd(test: TestCase, result: TestResult, step: TestStep): void {
-    if (this.options.verbose) {
-      console.log(`Stanterprise Reporter: Step ended - ${step.title}`);
-      console.log(`  Duration: ${step.duration}ms`);
-    }
+    this.logger.verbose(`Stanterprise Reporter: Step ended - ${step.title}`);
+    this.logger.verbose(`  Duration: ${step.duration}ms`);
     if (this.options.grpcEnabled) {
       handleOnStepEndEvent(
         test,
@@ -184,11 +177,9 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {
-    if (this.options.verbose) {
-      console.log(`Stanterprise Reporter: Test ended - ${test.title}`);
-      console.log(`  Status: ${result.status}`);
-      console.log(`  Duration: ${result.duration}ms`);
-    }
+    this.logger.verbose(`Stanterprise Reporter: Test ended - ${test.title}`);
+    this.logger.verbose(`  Status: ${result.status}`);
+    this.logger.verbose(`  Duration: ${result.duration}ms`);
     if (this.options.grpcEnabled) {
       handleOnTestEndEvent(
         test,
@@ -201,9 +192,7 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   onTestFail(test: TestCase, result: TestResult): void {
-    if (this.options.verbose) {
-      console.log(`Stanterprise Reporter: Test failed - ${test.title}`);
-    }
+    this.logger.verbose(`Stanterprise Reporter: Test failed - ${test.title}`);
     if (this.options.grpcEnabled) {
       handleOnTestFailEvent(
         test,
@@ -243,10 +232,8 @@ export default class StanterpriseReporter implements Reporter {
     test: void | TestCase,
     result: void | TestResult,
   ): void {
-    if (this.options.verbose) {
-      console.log(
-        `Stanterprise Reporter: Standard output - ${chunk.toString()}`,
-      );
-    }
+    this.logger.verbose(
+      `Stanterprise Reporter: Standard output - ${chunk.toString()}`,
+    );
   }
 }
