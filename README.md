@@ -92,6 +92,46 @@ npx playwright test
 | `grpcMaxMessageSize` | number  | `104857600`       | Max message size in bytes (100MB default)           |
 | `maxAttachmentSize`  | number  | `10485760`        | Max attachment content size in bytes (10MB default) |
 | `verbose`            | boolean | `false`           | Enable verbose logging                              |
+| `grpcMaxRetries`     | number  | `3`               | Maximum number of retry attempts for failed gRPC calls  |
+| `grpcRetryDelay`     | number  | `100`             | Initial delay for retries in ms (uses exponential backoff) |
+
+### Retry Configuration
+
+The reporter automatically retries failed gRPC calls for transient errors using exponential backoff:
+
+- **Retryable errors**: `UNAVAILABLE`, `DEADLINE_EXCEEDED`, `INTERNAL`, `UNKNOWN`
+- **Non-retryable errors**: `INVALID_ARGUMENT`, `NOT_FOUND`, `PERMISSION_DENIED`, `UNAUTHENTICATED`, `ALREADY_EXISTS`
+
+**Exponential backoff formula**: `grpcRetryDelay * (2 ^ attemptNumber)`
+
+Example with default settings (`grpcRetryDelay: 100`, `grpcMaxRetries: 3`):
+- Initial attempt: Immediate
+- Retry 1: Wait 100ms (100 * 2^0)
+- Retry 2: Wait 200ms (100 * 2^1)
+- Retry 3: Wait 400ms (100 * 2^2)
+
+```typescript
+export default defineConfig({
+  reporter: [
+    [
+      "stanterprise-playwright-reporter",
+      {
+        grpcMaxRetries: 5,        // Try up to 5 times
+        grpcRetryDelay: 200,      // Start with 200ms delay
+        verbose: true,            // Log retry attempts
+      },
+    ],
+  ],
+});
+```
+
+To disable retries:
+
+```typescript
+{
+  grpcMaxRetries: 0  // No retries, fail fast
+}
+```
 
 ## Sharding Support
 
