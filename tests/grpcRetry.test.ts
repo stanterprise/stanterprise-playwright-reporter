@@ -298,17 +298,17 @@ describe("gRPC Retry Functionality", () => {
         testPath,
         mockMessage,
         1000
-      );
+      ).catch((err) => err); // Catch to prevent unhandled rejection
 
-      // Advance through all retry delays: 100ms, 200ms, 400ms
-      const advancePromise = Promise.all([
-        jest.advanceTimersByTimeAsync(100),
-        jest.advanceTimersByTimeAsync(200),
-        jest.advanceTimersByTimeAsync(400),
-      ]);
+      // Advance through all retry delays sequentially: 100ms, 200ms, 400ms
+      await jest.advanceTimersByTimeAsync(100);
+      await jest.advanceTimersByTimeAsync(200);
+      await jest.advanceTimersByTimeAsync(400);
 
-      // Wait for both the response and timer advances
-      await expect(Promise.all([responsePromise, advancePromise])).rejects.toThrow("Always fails");
+      // Wait for the response and check error
+      const error = await responsePromise;
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe("Always fails");
 
       // Initial attempt + 3 retries = 4 total
       expect(mockClient.makeUnaryRequest).toHaveBeenCalledTimes(4);
@@ -331,12 +331,14 @@ describe("gRPC Retry Functionality", () => {
         testPath,
         mockMessage,
         1000
-      );
+      ).catch((err) => err); // Catch to prevent unhandled rejection
 
-      const advancePromise = jest.advanceTimersByTimeAsync(100);
+      await jest.advanceTimersByTimeAsync(100);
 
-      // Wait for both the response and timer advances
-      await expect(Promise.all([responsePromise, advancePromise])).rejects.toThrow("Fails");
+      // Wait for the response and check error
+      const error = await responsePromise;
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe("Fails");
 
       // Initial attempt + 1 retry = 2 total
       expect(mockClient.makeUnaryRequest).toHaveBeenCalledTimes(2);
