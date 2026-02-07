@@ -110,14 +110,18 @@ function executeSingleAttempt(
 }
 
 /**
- * Pauses execution for specified milliseconds
+ * Pauses execution for specified milliseconds with unref'd timer to avoid blocking shutdown
  */
 function pauseExecution(durationMs: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, durationMs));
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, durationMs);
+    // Unref the timer so it doesn't keep the process alive
+    timer.unref();
+  });
 }
 
 /**
- * Recursively attempts gRPC call with exponential backoff retry logic
+ * Attempts gRPC call with exponential backoff retry logic using iterative approach
  */
 async function attemptWithRetries(
   options: StanterpriseReporterOptions,
@@ -128,47 +132,47 @@ async function attemptWithRetries(
     serializeBinary?: () => Uint8Array;
   },
   deadlineMs: number,
-  retriesRemaining: number,
-  attemptNumber: number
+  maxRetries: number
 ): Promise<Buffer> {
-  try {
-    return await executeSingleAttempt(grpcClient, path, message, deadlineMs);
-  } catch (err) {
-    const grpcErr = err as grpc.ServiceError;
-    const statusCode = grpcErr?.code ?? grpc.status.UNKNOWN;
-    
-    // Check if we should retry this error
-    const isRetryable = shouldAttemptRetryForCode(statusCode);
-    const hasRetriesLeft = retriesRemaining > 0;
-    
-    if (!isRetryable || !hasRetriesLeft) {
-      throw err;
+  let attemptNumber = 0;
+  let lastError: Error | null = null;
+
+  // Try initial attempt + retries
+  for (let retriesRemaining = maxRetries; retriesRemaining >= 0; retriesRemaining--) {
+    try {
+      return await executeSingleAttempt(grpcClient, path, message, deadlineMs);
+    } catch (err) {
+      lastError = err as Error;
+      const grpcErr = err as grpc.ServiceError;
+      const statusCode = grpcErr?.code ?? grpc.status.UNKNOWN;
+      
+      // Check if we should retry this error
+      const isRetryable = shouldAttemptRetryForCode(statusCode);
+      const hasRetriesLeft = retriesRemaining > 0;
+      
+      if (!isRetryable || !hasRetriesLeft) {
+        throw err;
+      }
+      
+      // Log retry attempt if verbose
+      if (options.verbose) {
+        console.log(
+          `gRPC call failed (code: ${statusCode}), retrying... ` +
+          `(attempt ${attemptNumber + 1}, ${retriesRemaining} retries left)`
+        );
+      }
+      
+      // Calculate and wait for backoff duration
+      const baseDelay = options.grpcRetryDelay ?? 100;
+      const waitTime = calculateWaitDuration(baseDelay, attemptNumber);
+      await pauseExecution(waitTime);
+      
+      attemptNumber++;
     }
-    
-    // Log retry attempt if verbose
-    if (options.verbose) {
-      console.log(
-        `gRPC call failed (code: ${statusCode}), retrying... ` +
-        `(attempt ${attemptNumber + 1}, ${retriesRemaining} retries left)`
-      );
-    }
-    
-    // Calculate and wait for backoff duration
-    const baseDelay = options.grpcRetryDelay ?? 100;
-    const waitTime = calculateWaitDuration(baseDelay, attemptNumber);
-    await pauseExecution(waitTime);
-    
-    // Recursive retry
-    return attemptWithRetries(
-      options,
-      grpcClient,
-      path,
-      message,
-      deadlineMs,
-      retriesRemaining - 1,
-      attemptNumber + 1
-    );
   }
+
+  // This should never be reached due to the throw in the loop, but TypeScript needs it
+  throw lastError || new Error("Retry loop exhausted without result");
 }
 
 /**
@@ -196,7 +200,6 @@ export async function reportUnary(
     path,
     message,
     deadlineMs,
-    maxRetries,
-    0
+    maxRetries
   );
 }
