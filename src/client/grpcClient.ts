@@ -21,21 +21,40 @@ export default function getClient(
 
   return null;
 }
-// Helper: generic unary call using raw method path
-export async function reportUnary(
-  options: StanterpriseReporterOptions,
+
+/**
+ * Determines if a gRPC error code represents a transient failure worth retrying
+ */
+function shouldAttemptRetryForCode(errorCode: grpc.status): boolean {
+  const transientCodes = new Set([
+    grpc.status.UNAVAILABLE,
+    grpc.status.DEADLINE_EXCEEDED,
+    grpc.status.INTERNAL,
+    grpc.status.UNKNOWN,
+  ]);
+  
+  return transientCodes.has(errorCode);
+}
+
+/**
+ * Calculates wait time using power-of-two exponential backoff
+ */
+function calculateWaitDuration(baseDelayMs: number, attemptsSoFar: number): number {
+  return baseDelayMs * Math.pow(2, attemptsSoFar);
+}
+
+/**
+ * Performs a single gRPC unary request attempt
+ */
+function executeSingleAttempt(
   grpcClient: grpc.Client,
   path: string,
   message: {
     serialize?: (w?: any) => Uint8Array;
     serializeBinary?: () => Uint8Array;
   },
-  deadlineMs: number = 1000
+  deadlineMs: number
 ): Promise<Buffer> {
-  if (!options.grpcEnabled || !grpcClient) {
-    return Buffer.alloc(0);
-  }
-
   const reqSerialize = (arg: unknown): Buffer => {
     const m = arg as
       | {
@@ -88,4 +107,99 @@ export async function reportUnary(
       reject(e);
     }
   });
+}
+
+/**
+ * Pauses execution for specified milliseconds with unref'd timer to avoid blocking shutdown
+ */
+function pauseExecution(durationMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, durationMs);
+    // Unref the timer so it doesn't keep the process alive
+    timer.unref();
+  });
+}
+
+/**
+ * Attempts gRPC call with exponential backoff retry logic using iterative approach
+ */
+async function attemptWithRetries(
+  options: StanterpriseReporterOptions,
+  grpcClient: grpc.Client,
+  path: string,
+  message: {
+    serialize?: (w?: any) => Uint8Array;
+    serializeBinary?: () => Uint8Array;
+  },
+  deadlineMs: number,
+  maxRetries: number
+): Promise<Buffer> {
+  let attemptNumber = 0;
+  let lastError: Error | null = null;
+
+  // Try initial attempt + retries
+  for (let retriesRemaining = maxRetries; retriesRemaining >= 0; retriesRemaining--) {
+    try {
+      return await executeSingleAttempt(grpcClient, path, message, deadlineMs);
+    } catch (err) {
+      lastError = err as Error;
+      const grpcErr = err as grpc.ServiceError;
+      const statusCode = grpcErr?.code ?? grpc.status.UNKNOWN;
+      
+      // Check if we should retry this error
+      const isRetryable = shouldAttemptRetryForCode(statusCode);
+      const hasRetriesLeft = retriesRemaining > 0;
+      
+      if (!isRetryable || !hasRetriesLeft) {
+        throw err;
+      }
+      
+      // Log retry attempt if verbose
+      if (options.verbose) {
+        console.log(
+          `gRPC call failed (code: ${statusCode}), retrying... ` +
+          `(attempt ${attemptNumber + 1}, ${retriesRemaining} retries left)`
+        );
+      }
+      
+      // Calculate and wait for backoff duration
+      const baseDelay = options.grpcRetryDelay ?? 100;
+      const waitTime = calculateWaitDuration(baseDelay, attemptNumber);
+      await pauseExecution(waitTime);
+      
+      attemptNumber++;
+    }
+  }
+
+  // This should never be reached due to the throw in the loop, but TypeScript needs it
+  throw lastError || new Error("Retry loop exhausted without result");
+}
+
+/**
+ * Helper: generic unary call using raw method path with retry support
+ */
+export async function reportUnary(
+  options: StanterpriseReporterOptions,
+  grpcClient: grpc.Client,
+  path: string,
+  message: {
+    serialize?: (w?: any) => Uint8Array;
+    serializeBinary?: () => Uint8Array;
+  },
+  deadlineMs: number = 1000
+): Promise<Buffer> {
+  if (!options.grpcEnabled || !grpcClient) {
+    return Buffer.alloc(0);
+  }
+
+  const maxRetries = options.grpcMaxRetries ?? 3;
+  
+  return attemptWithRetries(
+    options,
+    grpcClient,
+    path,
+    message,
+    deadlineMs,
+    maxRetries
+  );
 }

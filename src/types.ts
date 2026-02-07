@@ -42,6 +42,19 @@ export interface StanterpriseReporterOptions {
    * @default false
    */
   verbose?: boolean;
+
+  /**
+   * Maximum number of retry attempts for failed gRPC calls
+   * @default 3
+   */
+  grpcMaxRetries?: number;
+
+  /**
+   * Initial delay between retry attempts in milliseconds
+   * Actual delay uses exponential backoff: initialDelay * (2 ^ attemptNumber)
+   * @default 100
+   */
+  grpcRetryDelay?: number;
 }
 
 /**

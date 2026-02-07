@@ -17,7 +17,11 @@ export default function defineOptions(
     providedOptions.grpcEnabled ??
     (process.env.STANTERPRISE_GRPC_ENABLED || "true").toLowerCase() !== "false";
   result.grpcTimeout = providedOptions.grpcTimeout || 1000;
+  result.grpcMaxMessageSize = providedOptions.grpcMaxMessageSize || 104857600;
+  result.maxAttachmentSize = providedOptions.maxAttachmentSize || 10485760;
   result.verbose = providedOptions.verbose || false;
+  result.grpcMaxRetries = providedOptions.grpcMaxRetries ?? 3;
+  result.grpcRetryDelay = providedOptions.grpcRetryDelay || 100;
 
   return result;
 }
