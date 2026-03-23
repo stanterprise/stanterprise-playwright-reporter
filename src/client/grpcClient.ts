@@ -1,5 +1,6 @@
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
+import { writeDebugEntry } from "../utils/debugLogger";
 
 export default function getClient(
   options: StanterpriseReporterOptions
@@ -188,6 +189,8 @@ export async function reportUnary(
   },
   deadlineMs: number = 1000
 ): Promise<Buffer> {
+  writeDebugEntry(options, path, message);
+
   if (!options.grpcEnabled || !grpcClient) {
     return Buffer.alloc(0);
   }

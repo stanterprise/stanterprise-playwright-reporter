@@ -22,6 +22,12 @@ export default function defineOptions(
   result.verbose = providedOptions.verbose || false;
   result.grpcMaxRetries = providedOptions.grpcMaxRetries ?? 3;
   result.grpcRetryDelay = providedOptions.grpcRetryDelay || 100;
+  result.debug =
+    providedOptions.debug ?? process.env.STANTERPRISE_DEBUG === "true";
+  result.debugFile =
+    providedOptions.debugFile ||
+    process.env.STANTERPRISE_DEBUG_FILE ||
+    "stanterprise-debug.jsonl";
 
   return result;
 }

@@ -55,6 +55,18 @@ export interface StanterpriseReporterOptions {
    * @default 100
    */
   grpcRetryDelay?: number;
+
+  /**
+   * Whether to enable debug mode, which writes all outgoing gRPC messages to a JSONL file
+   * @default false or process.env.STANTERPRISE_DEBUG === "true"
+   */
+  debug?: boolean;
+
+  /**
+   * File path for debug JSONL output when debug mode is enabled
+   * @default "stanterprise-debug.jsonl" or process.env.STANTERPRISE_DEBUG_FILE
+   */
+  debugFile?: string;
 }
 
 /**

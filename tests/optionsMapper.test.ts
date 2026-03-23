@@ -9,6 +9,8 @@ describe("defineOptions", () => {
     // Clear any environment variables that might affect tests
     delete process.env.STANTERPRISE_GRPC_ADDRESS;
     delete process.env.STANTERPRISE_GRPC_ENABLED;
+    delete process.env.STANTERPRISE_DEBUG;
+    delete process.env.STANTERPRISE_DEBUG_FILE;
   });
 
   it("should apply default values for all options", () => {
@@ -22,6 +24,8 @@ describe("defineOptions", () => {
     expect(result.verbose).toBe(false);
     expect(result.grpcMaxRetries).toBe(3);
     expect(result.grpcRetryDelay).toBe(100);
+    expect(result.debug).toBe(false);
+    expect(result.debugFile).toBe("stanterprise-debug.jsonl");
   });
 
   it("should preserve user-provided retry options", () => {
@@ -97,5 +101,45 @@ describe("defineOptions", () => {
     // Test that undefined gets default
     const result2 = defineOptions({});
     expect(result2.grpcMaxRetries).toBe(3);
+  });
+
+  it("should default debug to false and debugFile to stanterprise-debug.jsonl", () => {
+    const result = defineOptions({});
+
+    expect(result.debug).toBe(false);
+    expect(result.debugFile).toBe("stanterprise-debug.jsonl");
+  });
+
+  it("should enable debug via provided option", () => {
+    const result = defineOptions({ debug: true, debugFile: "my-debug.jsonl" });
+
+    expect(result.debug).toBe(true);
+    expect(result.debugFile).toBe("my-debug.jsonl");
+  });
+
+  it("should enable debug via STANTERPRISE_DEBUG environment variable", () => {
+    process.env.STANTERPRISE_DEBUG = "true";
+
+    const result = defineOptions({});
+
+    expect(result.debug).toBe(true);
+  });
+
+  it("should set debugFile via STANTERPRISE_DEBUG_FILE environment variable", () => {
+    process.env.STANTERPRISE_DEBUG_FILE = "env-debug.jsonl";
+
+    const result = defineOptions({});
+
+    expect(result.debugFile).toBe("env-debug.jsonl");
+  });
+
+  it("should prefer provided debug options over environment variables", () => {
+    process.env.STANTERPRISE_DEBUG = "true";
+    process.env.STANTERPRISE_DEBUG_FILE = "env-debug.jsonl";
+
+    const result = defineOptions({ debug: false, debugFile: "config-debug.jsonl" });
+
+    expect(result.debug).toBe(false);
+    expect(result.debugFile).toBe("config-debug.jsonl");
   });
 });
