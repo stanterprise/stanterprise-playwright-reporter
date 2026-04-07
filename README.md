@@ -14,7 +14,7 @@ Custom Playwright test reporter that sends test results to Stanterprise via gRPC
 ## Installation
 
 ```bash
-npm install stanterprise-playwright-reporter --save-dev
+npm install @stanterprise/playwright-reporter --save-dev
 ```
 
 ## Configuration
@@ -27,7 +27,7 @@ Add the reporter to your `playwright.config.ts`:
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
-  reporter: [["stanterprise-playwright-reporter"]],
+  reporter: [["@stanterprise/playwright-reporter"]],
   // ... other config
 });
 ```
@@ -40,7 +40,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   reporter: [
     [
-      "stanterprise-playwright-reporter",
+      "@stanterprise/playwright-reporter",
       {
         grpcAddress: "localhost:50051", // gRPC server address
         grpcEnabled: true, // Enable/disable gRPC reporting
