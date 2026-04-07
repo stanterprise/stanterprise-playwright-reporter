@@ -193,7 +193,7 @@ export async function reportUnary(
     return Buffer.alloc(0);
   }
 
-  writeDebugEntry(options, path, message);
+  await writeDebugEntry(options, path, message);
 
   const maxRetries = options.grpcMaxRetries ?? 3;
   

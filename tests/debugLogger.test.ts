@@ -69,11 +69,11 @@ describe("debugLogger", () => {
       fs.writeFileSync(debugFilePath, "");
     });
 
-    it("should write a JSONL entry when debug is enabled", () => {
+    it("should write a JSONL entry when debug is enabled", async () => {
       const options: StanterpriseReporterOptions = { debug: true, debugFile: debugFilePath };
       const message = { run_id: "test-run-123", name: "My Run" };
 
-      writeDebugEntry(options, "/testsystem.v1.observer.TestEventCollector/ReportRunStart", message);
+      await writeDebugEntry(options, "/testsystem.v1.observer.TestEventCollector/ReportRunStart", message);
 
       const content = fs.readFileSync(debugFilePath, "utf8");
       const lines = content.trim().split("\n");
@@ -83,15 +83,15 @@ describe("debugLogger", () => {
       expect(entry.path).toBe("/testsystem.v1.observer.TestEventCollector/ReportRunStart");
       expect(entry.message).toEqual(message);
       expect(typeof entry.timestamp).toBe("string");
-      expect(() => new Date(entry.timestamp)).not.toThrow();
+      expect(Number.isNaN(new Date(entry.timestamp).getTime())).toBe(false);
     });
 
-    it("should append multiple JSONL entries in order", () => {
+    it("should append multiple JSONL entries in order", async () => {
       const options: StanterpriseReporterOptions = { debug: true, debugFile: debugFilePath };
 
-      writeDebugEntry(options, "/path/MethodOne", { id: 1 });
-      writeDebugEntry(options, "/path/MethodTwo", { id: 2 });
-      writeDebugEntry(options, "/path/MethodThree", { id: 3 });
+      await writeDebugEntry(options, "/path/MethodOne", { id: 1 });
+      await writeDebugEntry(options, "/path/MethodTwo", { id: 2 });
+      await writeDebugEntry(options, "/path/MethodThree", { id: 3 });
 
       const content = fs.readFileSync(debugFilePath, "utf8");
       const lines = content.trim().split("\n");
@@ -102,27 +102,27 @@ describe("debugLogger", () => {
       expect(JSON.parse(lines[2]).path).toBe("/path/MethodThree");
     });
 
-    it("should do nothing when debug is disabled", () => {
+    it("should do nothing when debug is disabled", async () => {
       const options: StanterpriseReporterOptions = { debug: false, debugFile: debugFilePath };
 
-      writeDebugEntry(options, "/path/Method", { id: 1 });
+      await writeDebugEntry(options, "/path/Method", { id: 1 });
 
       expect(fs.readFileSync(debugFilePath, "utf8")).toBe("");
     });
 
-    it("should do nothing when debug is undefined", () => {
+    it("should do nothing when debug is undefined", async () => {
       const options: StanterpriseReporterOptions = { debugFile: debugFilePath };
 
-      writeDebugEntry(options, "/path/Method", { id: 1 });
+      await writeDebugEntry(options, "/path/Method", { id: 1 });
 
       expect(fs.readFileSync(debugFilePath, "utf8")).toBe("");
     });
 
-    it("should include a valid ISO timestamp in each entry", () => {
+    it("should include a valid ISO timestamp in each entry", async () => {
       const before = new Date();
       const options: StanterpriseReporterOptions = { debug: true, debugFile: debugFilePath };
 
-      writeDebugEntry(options, "/path/Method", {});
+      await writeDebugEntry(options, "/path/Method", {});
 
       const after = new Date();
       const content = fs.readFileSync(debugFilePath, "utf8");
@@ -133,7 +133,7 @@ describe("debugLogger", () => {
       expect(entryTime.getTime()).toBeLessThanOrEqual(after.getTime());
     });
 
-    it("should serialize complex message objects", () => {
+    it("should serialize complex message objects", async () => {
       const options: StanterpriseReporterOptions = { debug: true, debugFile: debugFilePath };
       const message = {
         run_id: "abc",
@@ -141,18 +141,18 @@ describe("debugLogger", () => {
         metadata: { env: "ci", version: "1.0" },
       };
 
-      writeDebugEntry(options, "/path/ReportTestEnd", message);
+      await writeDebugEntry(options, "/path/ReportTestEnd", message);
 
       const content = fs.readFileSync(debugFilePath, "utf8");
       const entry = JSON.parse(content.trim());
       expect(entry.message).toEqual(message);
     });
 
-    it("should create parent directories when they do not exist", () => {
+    it("should create parent directories when they do not exist", async () => {
       const nestedPath = path.join(tempDir, "nested", "dir", "debug.jsonl");
       const options: StanterpriseReporterOptions = { debug: true, debugFile: nestedPath };
 
-      writeDebugEntry(options, "/path/Method", { id: 1 });
+      await writeDebugEntry(options, "/path/Method", { id: 1 });
 
       const content = fs.readFileSync(nestedPath, "utf8");
       const entry = JSON.parse(content.trim());

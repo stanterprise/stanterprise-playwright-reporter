@@ -36,11 +36,11 @@ export function initDebugFile(options: StanterpriseReporterOptions): void {
  * gRPC method path, and the serialized message payload.
  * No-op when debug mode is disabled.
  */
-export function writeDebugEntry(
+export async function writeDebugEntry(
   options: StanterpriseReporterOptions,
   path: string,
   message: unknown,
-): void {
+): Promise<void> {
   if (!options.debug) return;
   const filePath = options.debugFile || "stanterprise-debug.jsonl";
   const entry = {
@@ -50,7 +50,7 @@ export function writeDebugEntry(
   };
   try {
     ensureParentDir(filePath);
-    fs.appendFileSync(filePath, JSON.stringify(entry) + "\n");
+    await fs.promises.appendFile(filePath, JSON.stringify(entry) + "\n");
   } catch (e) {
     console.error(
       `Stanterprise Reporter: Failed to write debug entry to "${filePath}":`,

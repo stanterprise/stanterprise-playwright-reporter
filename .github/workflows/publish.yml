@@ -2,6 +2,11 @@ name: Publish to NPM
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Version tag to publish (must start with 'v', e.g. v1.0.0)"
+        required: true
+        type: string
 
   push:
     tags:
@@ -14,6 +19,13 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Validate ref is a version tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ ! "${{ github.event.inputs.ref }}" =~ ^v ]]; then
+            echo "Error: ref must start with 'v' (e.g. v1.0.0). Got: ${{ github.event.inputs.ref }}"
+            exit 1
+          fi
       - name: Checkout code
         uses: actions/checkout@v4
 
