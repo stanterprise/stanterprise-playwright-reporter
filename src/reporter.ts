@@ -14,6 +14,7 @@ import { StanterpriseReporterOptions } from "./types";
 import defineOptions from "./utils/optionsMapper";
 import { initDebugFile } from "./utils/debugLogger";
 import getClient from "./client/grpcClient";
+import { MessageQueue } from "./client/messageQueue";
 import {
   handleOnBeginEvent,
   handleOnEndEvent,
@@ -33,6 +34,9 @@ export default class StanterpriseReporter implements Reporter {
   // Generate a unique run ID for this test run
   private runId: string = "";
   private runStartTime: Date = new Date();
+
+  // Sequential message queue – guarantees ordered delivery to the server
+  private messageQueue = new MessageQueue();
 
   constructor(options: StanterpriseReporterOptions = {}) {
     this.options = defineOptions(options);
@@ -88,11 +92,15 @@ export default class StanterpriseReporter implements Reporter {
         this.runId,
         this.grpcClient!,
         this.options,
+        this.messageQueue,
       );
     }
   }
 
   async onExit(): Promise<void> {
+    // Wait for all enqueued messages to be sent before closing the connection.
+    await this.messageQueue.drain();
+
     console.log(
       `Stanterprise Reporter: Test run completed - Run ID: ${this.runId}`,
     );
@@ -124,7 +132,7 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     if (this.options.grpcEnabled) {
-      handleOnEndEvent(result, this.runId, this.grpcClient!, this.options);
+      handleOnEndEvent(result, this.runId, this.grpcClient!, this.options, this.messageQueue);
     }
 
     return Promise.resolve();
@@ -145,6 +153,7 @@ export default class StanterpriseReporter implements Reporter {
         this.runId,
         this.grpcClient!,
         this.options,
+        this.messageQueue,
       );
     }
   }
@@ -166,6 +175,7 @@ export default class StanterpriseReporter implements Reporter {
         this.runId,
         this.grpcClient!,
         this.options,
+        this.messageQueue,
       );
     }
   }
@@ -183,6 +193,7 @@ export default class StanterpriseReporter implements Reporter {
         this.runId,
         this.grpcClient!,
         this.options,
+        this.messageQueue,
       );
     }
   }
@@ -200,6 +211,7 @@ export default class StanterpriseReporter implements Reporter {
         this.runId,
         this.grpcClient!,
         this.options,
+        this.messageQueue,
       );
     }
   }
@@ -215,6 +227,7 @@ export default class StanterpriseReporter implements Reporter {
         this.runId,
         this.grpcClient!,
         this.options,
+        this.messageQueue,
       );
     }
   }
@@ -228,7 +241,7 @@ export default class StanterpriseReporter implements Reporter {
       console.error(`Stack trace: ${error.stack}`);
     }
     if (this.options.grpcEnabled) {
-      handleOnErrorEvent(error, this.runId, this.grpcClient!, this.options);
+      handleOnErrorEvent(error, this.runId, this.grpcClient!, this.options, this.messageQueue);
     }
   }
 

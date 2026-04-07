@@ -2,6 +2,7 @@ import { FullResult } from "@playwright/test/reporter";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
+import { MessageQueue } from "../client/messageQueue";
 import { createDuration, createTimestampFromMs } from "../utils";
 import { TestRunEndEventRequest } from "@stanterprise/protobuf/testsystem/v1/events";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
@@ -25,7 +26,8 @@ export function handleOnEndEvent(
   result: FullResult,
   runId: string,
   client: grpc.Client,
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
+  queue?: MessageQueue,
 ) {
   // Validate and sanitize inputs to prevent serialization failures
   const startTimeMs = result.startTime?.getTime();
@@ -52,7 +54,8 @@ export function handleOnEndEvent(
     client,
     "/testsystem.v1.observer.TestEventCollector/ReportRunEnd",
     request,
-    options.grpcTimeout
+    options.grpcTimeout,
+    queue,
   ).catch((error) => {
     if (error instanceof Error) {
       console.error(`Failed to report end event: ${error.message}`, {

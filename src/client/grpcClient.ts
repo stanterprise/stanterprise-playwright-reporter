@@ -1,6 +1,7 @@
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { writeDebugEntry } from "../utils/debugLogger";
+import { MessageQueue } from "./messageQueue";
 
 export default function getClient(
   options: StanterpriseReporterOptions
@@ -177,32 +178,46 @@ async function attemptWithRetries(
 }
 
 /**
- * Helper: generic unary call using raw method path with retry support
+ * Helper: generic unary call using raw method path with retry support.
+ *
+ * When a `queue` is provided the call is enqueued and executed only after all
+ * previously enqueued calls have completed, guaranteeing sequential delivery to
+ * the server. Without a queue the call is executed immediately (legacy / test
+ * behaviour).
  */
 export async function reportUnary(
   options: StanterpriseReporterOptions,
   grpcClient: grpc.Client,
-  path: string,
+  grpcPath: string,
   message: {
     serialize?: (w?: any) => Uint8Array;
     serializeBinary?: () => Uint8Array;
   },
-  deadlineMs: number = 1000
+  deadlineMs: number = 1000,
+  queue?: MessageQueue
 ): Promise<Buffer> {
   if (!options.grpcEnabled || !grpcClient) {
     return Buffer.alloc(0);
   }
 
-  await writeDebugEntry(options, path, message);
+  const execute = async (): Promise<Buffer> => {
+    await writeDebugEntry(options, grpcPath, message);
 
-  const maxRetries = options.grpcMaxRetries ?? 3;
-  
-  return attemptWithRetries(
-    options,
-    grpcClient,
-    path,
-    message,
-    deadlineMs,
-    maxRetries
-  );
+    const maxRetries = options.grpcMaxRetries ?? 3;
+
+    return attemptWithRetries(
+      options,
+      grpcClient,
+      grpcPath,
+      message,
+      deadlineMs,
+      maxRetries
+    );
+  };
+
+  if (queue) {
+    return queue.enqueue(execute);
+  }
+
+  return execute();
 }

@@ -4,12 +4,14 @@ import * as grpc from "@grpc/grpc-js";
 import { StdErrorEventRequest } from "@stanterprise/protobuf/testsystem/v1/events";
 import { createTimestampFromMs } from "../utils/timeHelpers";
 import { reportUnary } from "../client/grpcClient";
+import { MessageQueue } from "../client/messageQueue";
 
 export function handleOnErrorEvent(
   error: TestError,
   runId: string,
   grpcClient: grpc.Client,
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
+  queue?: MessageQueue,
 ) {
   const request = new StdErrorEventRequest({
     run_id: runId,
@@ -22,6 +24,7 @@ export function handleOnErrorEvent(
     grpcClient,
     "/testsystem.v1.observer.TestEventCollector/ReportStdError",
     request,
-    options.grpcTimeout
+    options.grpcTimeout,
+    queue,
   ).catch((e) => console.error("Failed to report standard error", e));
 }
