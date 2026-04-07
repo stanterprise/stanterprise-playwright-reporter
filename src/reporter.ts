@@ -12,6 +12,7 @@ import * as grpc from "@grpc/grpc-js";
 import { randomUUID } from "crypto";
 import { StanterpriseReporterOptions } from "./types";
 import defineOptions from "./utils/optionsMapper";
+import { initDebugFile } from "./utils/debugLogger";
 import getClient from "./client/grpcClient";
 import {
   handleOnBeginEvent,
@@ -47,6 +48,9 @@ export default class StanterpriseReporter implements Reporter {
 
     // Generate a UUID for runId
     this.runId = process.env.STANTERPRISE_RUN_ID || randomUUID();
+
+    // Initialize debug file (creates/truncates it) when debug mode is enabled
+    initDebugFile(this.options);
   }
 
   onBegin(config: FullConfig, suite: Suite): void {

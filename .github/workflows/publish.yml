@@ -1,9 +1,16 @@
 name: Publish to NPM
 
 on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Version tag to publish (must start with 'v', e.g. v1.0.0)"
+        required: true
+        type: string
+
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   publish:
@@ -12,14 +19,21 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Validate ref is a version tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [[ ! "${{ github.event.inputs.ref }}" =~ ^v ]]; then
+            echo "Error: ref must start with 'v' (e.g. v1.0.0). Got: ${{ github.event.inputs.ref }}"
+            exit 1
+          fi
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install dependencies
         run: npm ci

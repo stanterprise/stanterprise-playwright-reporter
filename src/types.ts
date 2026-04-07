@@ -55,6 +55,24 @@ export interface StanterpriseReporterOptions {
    * @default 100
    */
   grpcRetryDelay?: number;
+
+  /**
+   * Whether to enable debug mode, which writes all outgoing gRPC messages to a JSONL file.
+   * Warning: debug output may include full request payloads, including attachment content
+   * and metadata, which can contain sensitive values. Debug files may also grow very large.
+   * Enable this only for troubleshooting in controlled environments.
+   * @default false or process.env.STANTERPRISE_DEBUG === "true"
+   */
+  debug?: boolean;
+
+  /**
+   * File path for debug JSONL output when debug mode is enabled.
+   * Warning: the file may contain sensitive request data and can become very large,
+   * especially when attachments are included. Use only in controlled environments and
+   * handle the output file securely.
+   * @default "stanterprise-debug.jsonl" or process.env.STANTERPRISE_DEBUG_FILE
+   */
+  debugFile?: string;
 }
 
 /**
