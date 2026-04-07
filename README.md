@@ -9,6 +9,7 @@ Custom Playwright test reporter that sends test results to Stanterprise via gRPC
 - 📎 **Attachment Support**: Handles screenshots, videos, and other test attachments
 - 🔌 **gRPC Integration**: Communicates with Stanterprise backend via gRPC protocol
 - ⚙️ **Configurable**: Supports environment variables and configuration options
+- 🐛 **Debug Mode**: Captures outgoing gRPC messages to a JSONL file for troubleshooting
 - 🛡️ **Error Resilient**: Graceful error handling that doesn't interrupt test execution
 
 ## Installation
@@ -48,6 +49,8 @@ export default defineConfig({
         grpcMaxMessageSize: 104857600, // Max message size (100MB default)
         maxAttachmentSize: 10485760, // Max attachment size (10MB default)
         verbose: false, // Enable verbose logging
+        debug: false,          // Enable debug mode (writes gRPC messages to JSONL file)
+        debugFile: "stanterprise-debug.jsonl", // Path for debug JSONL output
       },
     ],
   ],
@@ -62,6 +65,8 @@ You can also configure the reporter using environment variables:
 - `STANTERPRISE_GRPC_ADDRESS`: gRPC server address (default: `localhost:50051`)
 - `STANTERPRISE_GRPC_ENABLED`: Enable/disable gRPC reporting (default: `true`)
 - `STANTERPRISE_META_*`: Custom metadata fields for test runs (prefix will be stripped)
+- `STANTERPRISE_DEBUG`: Enable debug mode — captures outgoing gRPC messages to a JSONL file (default: `false`; case-insensitive: `"true"`, `"TRUE"`, `"True"` all work)
+- `STANTERPRISE_DEBUG_FILE`: File path for debug JSONL output (default: `stanterprise-debug.jsonl`)
 
 #### Custom Metadata
 
@@ -94,6 +99,8 @@ npx playwright test
 | `verbose`            | boolean | `false`           | Enable verbose logging                              |
 | `grpcMaxRetries`     | number  | `3`               | Maximum number of retry attempts for failed gRPC calls  |
 | `grpcRetryDelay`     | number  | `100`             | Initial delay for retries in ms (uses exponential backoff) |
+| `debug`              | boolean | `false`           | Enable debug mode — writes all outgoing gRPC messages to a JSONL file. **Warning:** output may include sensitive request payloads and grow very large. Use only in controlled environments. |
+| `debugFile`          | string  | `stanterprise-debug.jsonl` | File path for debug JSONL output. Parent directories are created automatically if they do not exist. |
 
 ### Retry Configuration
 
@@ -132,6 +139,51 @@ To disable retries:
   grpcMaxRetries: 0  // No retries, fail fast
 }
 ```
+
+## Debug Mode
+
+The reporter includes an opt-in debug mode that captures every outgoing gRPC message to a JSONL file. This is useful for troubleshooting, auditing what is sent to the backend, or diagnosing unexpected behavior.
+
+> **Warning:** Debug output may include full request payloads — including attachment content and metadata — which can contain sensitive values. Debug files may also grow very large. Enable this only in controlled environments and handle the output file securely.
+
+### Enabling Debug Mode
+
+Via configuration:
+
+```typescript
+export default defineConfig({
+  reporter: [
+    [
+      "@stanterprise/playwright-reporter",
+      {
+        debug: true,
+        debugFile: "debug-output.jsonl", // optional, defaults to stanterprise-debug.jsonl
+      },
+    ],
+  ],
+});
+```
+
+Via environment variables:
+
+```bash
+STANTERPRISE_DEBUG=true STANTERPRISE_DEBUG_FILE=debug-output.jsonl npx playwright test
+```
+
+### Debug File Format
+
+Each line is a JSON object with three fields:
+
+```json
+{"timestamp":"2026-03-23T04:10:00.000Z","path":"/testsystem.v1.observer.TestEventCollector/ReportRunStart","message":{"run_id":"abc-123","name":"My Run"}}
+{"timestamp":"2026-03-23T04:10:01.000Z","path":"/testsystem.v1.observer.TestEventCollector/ReportTestBegin","message":{"test_case":{"id":"t1","name":"login test"}}}
+```
+
+- `timestamp` — ISO 8601 timestamp when the message was sent
+- `path` — gRPC method path
+- `message` — full serialized request payload
+
+The debug file is created/truncated at reporter initialization, so each test run starts with a clean file. Entries are only written for messages that are actually dispatched (i.e., when gRPC is enabled). Writes are performed asynchronously to minimize overhead.
 
 ## Sharding Support
 
@@ -319,6 +371,7 @@ The reporter is organized into several modules:
 - **utils/statusMapper.ts**: Maps Playwright statuses to protobuf enums
 - **utils/attachmentProcessor.ts**: Processes test attachments
 - **utils/timeHelpers.ts**: Handles timestamp and duration conversions
+- **utils/debugLogger.ts**: Writes outgoing gRPC messages to a JSONL file when debug mode is enabled
 
 ## Troubleshooting
 
