@@ -189,11 +189,11 @@ export async function reportUnary(
   },
   deadlineMs: number = 1000
 ): Promise<Buffer> {
-  writeDebugEntry(options, path, message);
-
   if (!options.grpcEnabled || !grpcClient) {
     return Buffer.alloc(0);
   }
+
+  writeDebugEntry(options, path, message);
 
   const maxRetries = options.grpcMaxRetries ?? 3;
   

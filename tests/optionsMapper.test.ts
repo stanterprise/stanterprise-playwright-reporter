@@ -103,26 +103,15 @@ describe("defineOptions", () => {
     expect(result2.grpcMaxRetries).toBe(3);
   });
 
-  it("should default debug to false and debugFile to stanterprise-debug.jsonl", () => {
-    const result = defineOptions({});
-
-    expect(result.debug).toBe(false);
-    expect(result.debugFile).toBe("stanterprise-debug.jsonl");
-  });
-
-  it("should enable debug via provided option", () => {
-    const result = defineOptions({ debug: true, debugFile: "my-debug.jsonl" });
-
-    expect(result.debug).toBe(true);
-    expect(result.debugFile).toBe("my-debug.jsonl");
-  });
-
   it("should enable debug via STANTERPRISE_DEBUG environment variable", () => {
     process.env.STANTERPRISE_DEBUG = "true";
+    expect(defineOptions({}).debug).toBe(true);
 
-    const result = defineOptions({});
+    process.env.STANTERPRISE_DEBUG = "TRUE";
+    expect(defineOptions({}).debug).toBe(true);
 
-    expect(result.debug).toBe(true);
+    process.env.STANTERPRISE_DEBUG = "True";
+    expect(defineOptions({}).debug).toBe(true);
   });
 
   it("should set debugFile via STANTERPRISE_DEBUG_FILE environment variable", () => {

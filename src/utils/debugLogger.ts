@@ -1,5 +1,16 @@
 import * as fs from "fs";
+import * as nodePath from "path";
 import { StanterpriseReporterOptions } from "../types";
+
+/**
+ * Ensures the parent directory of `filePath` exists, creating it recursively if needed.
+ */
+function ensureParentDir(filePath: string): void {
+  const dir = nodePath.dirname(filePath);
+  if (dir && dir !== ".") {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
 
 /**
  * Creates or truncates the debug JSONL file so each test run starts with a clean file.
@@ -9,6 +20,7 @@ export function initDebugFile(options: StanterpriseReporterOptions): void {
   if (!options.debug) return;
   const filePath = options.debugFile || "stanterprise-debug.jsonl";
   try {
+    ensureParentDir(filePath);
     fs.writeFileSync(filePath, "");
   } catch (e) {
     console.error(
@@ -37,6 +49,7 @@ export function writeDebugEntry(
     message,
   };
   try {
+    ensureParentDir(filePath);
     fs.appendFileSync(filePath, JSON.stringify(entry) + "\n");
   } catch (e) {
     console.error(

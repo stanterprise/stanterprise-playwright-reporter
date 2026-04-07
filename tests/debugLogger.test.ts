@@ -51,6 +51,16 @@ describe("debugLogger", () => {
 
       expect(fs.existsSync(debugFilePath)).toBe(false);
     });
+
+    it("should create parent directories when they do not exist", () => {
+      const nestedPath = path.join(tempDir, "nested", "dir", "debug.jsonl");
+      const options: StanterpriseReporterOptions = { debug: true, debugFile: nestedPath };
+
+      initDebugFile(options);
+
+      expect(fs.existsSync(nestedPath)).toBe(true);
+      expect(fs.readFileSync(nestedPath, "utf8")).toBe("");
+    });
   });
 
   describe("writeDebugEntry", () => {
@@ -136,6 +146,17 @@ describe("debugLogger", () => {
       const content = fs.readFileSync(debugFilePath, "utf8");
       const entry = JSON.parse(content.trim());
       expect(entry.message).toEqual(message);
+    });
+
+    it("should create parent directories when they do not exist", () => {
+      const nestedPath = path.join(tempDir, "nested", "dir", "debug.jsonl");
+      const options: StanterpriseReporterOptions = { debug: true, debugFile: nestedPath };
+
+      writeDebugEntry(options, "/path/Method", { id: 1 });
+
+      const content = fs.readFileSync(nestedPath, "utf8");
+      const entry = JSON.parse(content.trim());
+      expect(entry.path).toBe("/path/Method");
     });
   });
 });
