@@ -5,6 +5,7 @@ import { TestCase, TestResult } from "@playwright/test/reporter";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
+import { MessageQueue } from "../client/messageQueue";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 
 export function handleOnTestBeginEvent(
@@ -12,7 +13,8 @@ export function handleOnTestBeginEvent(
   result: TestResult,
   runId: string,
   client: grpc.Client,
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
+  queue?: MessageQueue,
 ) {
   // Build and send the TestBegin event via generic unary call.
   const request = new TestBeginEventRequest({
@@ -38,7 +40,8 @@ export function handleOnTestBeginEvent(
     client,
     "/testsystem.v1.observer.TestEventCollector/ReportTestBegin",
     request,
-    options.grpcTimeout
+    options.grpcTimeout,
+    queue,
   ).catch((e) => {
     const details = e instanceof Error ? `${e.message}` : String(e);
     console.warn(`Failed to report test begin. Details: ${details}`);

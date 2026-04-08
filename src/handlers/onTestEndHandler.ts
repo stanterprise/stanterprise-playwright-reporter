@@ -14,6 +14,7 @@ import { reportUnary } from "../client/grpcClient";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { generateSuiteId } from "../utils";
+import { MessageQueue } from "../client/messageQueue";
 
 /**
  * Constant for converting bytes to megabytes
@@ -26,6 +27,7 @@ export function handleOnTestEndEvent(
   runId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions,
+  queue?: MessageQueue,
 ) {
   // Map Playwright test status to protobuf TestStatus
   const testStatus = mapTestStatus(result.status);
@@ -90,6 +92,7 @@ export function handleOnTestEndEvent(
     "/testsystem.v1.observer.TestEventCollector/ReportTestEnd",
     request,
     options.grpcTimeout,
+    queue,
   ).catch((e) => {
     console.error(
       `Failed to report test end for "${test.title}" (payload size: ${(

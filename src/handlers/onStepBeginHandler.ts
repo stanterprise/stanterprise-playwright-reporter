@@ -6,6 +6,7 @@ import { createTimestamp, buildStepMetadata, toMetadataMap } from "../utils";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
 import { generateStepId } from "../utils";
+import { MessageQueue } from "../client/messageQueue";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 
 export function handleOnStepBeginEvent(
@@ -14,7 +15,8 @@ export function handleOnStepBeginEvent(
   step: TestStep,
   runId: string,
   client: grpc.Client,
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
+  queue?: MessageQueue,
 ) {
   // Build metadata from step annotations
   const metadata = buildStepMetadata(step);
@@ -50,6 +52,7 @@ export function handleOnStepBeginEvent(
     client,
     "/testsystem.v1.observer.TestEventCollector/ReportStepBegin",
     request,
-    options.grpcTimeout
+    options.grpcTimeout,
+    queue,
   ).catch((e) => console.error("Failed to report step begin", e));
 }

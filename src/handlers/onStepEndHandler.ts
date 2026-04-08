@@ -13,6 +13,7 @@ import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
 import { generateStepId } from "../utils";
+import { MessageQueue } from "../client/messageQueue";
 
 export function handleOnStepEndEvent(
   test: TestCase,
@@ -21,6 +22,7 @@ export function handleOnStepEndEvent(
   runId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions,
+  queue?: MessageQueue,
 ) {
   // Map step error to status
   const stepStatus = mapStepStatus(!!step.error);
@@ -78,5 +80,6 @@ export function handleOnStepEndEvent(
     "/testsystem.v1.observer.TestEventCollector/ReportStepEnd",
     request,
     options.grpcTimeout,
+    queue,
   ).catch((e) => console.error("Failed to report step end", e));
 }

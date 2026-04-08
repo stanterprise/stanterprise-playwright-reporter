@@ -4,6 +4,7 @@ import { ReportRunStartEventRequest } from "@stanterprise/protobuf/testsystem/v1
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
+import { MessageQueue } from "../client/messageQueue";
 import {
   TestSuiteRun,
   SuiteType,
@@ -19,6 +20,7 @@ export function handleOnBeginEvent(
   runId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions,
+  queue?: MessageQueue,
 ) {
   // Report root suite and all child suites recursively
   // Convert all metadata values to strings for protobuf compatibility
@@ -54,6 +56,7 @@ export function handleOnBeginEvent(
     "/testsystem.v1.observer.TestEventCollector/ReportRunStart",
     request,
     options.grpcTimeout,
+    queue,
   ).catch((e) => {
     const details = e instanceof Error ? `${e.message}` : String(e);
     console.warn(

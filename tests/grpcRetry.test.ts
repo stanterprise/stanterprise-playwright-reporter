@@ -2,6 +2,7 @@
  * Tests for gRPC retry functionality
  */
 import { reportUnary } from "../src/client/grpcClient";
+import { MessageQueue } from "../src/client/messageQueue";
 import type { StanterpriseReporterOptions } from "../src/types";
 import * as grpc from "@grpc/grpc-js";
 
@@ -547,6 +548,131 @@ describe("gRPC Retry Functionality", () => {
       await reportUnary(testConfig, mockClient, testPath, customMessage, 1000);
 
       expect(customMessage.serialize).toHaveBeenCalled();
+    });
+  });
+
+  describe("queue integration", () => {
+    // These tests use real timers so that async operations in MessageQueue
+    // (which relies on Promise micro-tasks, not setTimeout) resolve naturally.
+    beforeEach(() => {
+      jest.useRealTimers();
+    });
+
+    afterEach(() => {
+      // Re-enable fake timers so the outer afterEach (jest.useRealTimers) is a no-op
+      jest.useRealTimers();
+    });
+
+    it("should execute calls strictly in order when a queue is provided", async () => {
+      const queue = new MessageQueue();
+      const callOrder: number[] = [];
+      let callIndex = 0;
+
+      // Each invocation records the index at which it was called
+      mockClient.makeUnaryRequest.mockImplementation(
+        (_path: string, _ser: any, _des: any, _msg: any, _meta: any, _opts: any, cb: any) => {
+          const myIndex = callIndex++;
+          // Resolve asynchronously to give concurrent calls a chance to interleave
+          Promise.resolve().then(() => {
+            callOrder.push(myIndex);
+            cb(null, Buffer.from(`response-${myIndex}`));
+          });
+        }
+      );
+
+      // Fire all three calls without awaiting individually - they must still execute in order
+      const p1 = reportUnary(testConfig, mockClient, "/path/Method1", mockMessage, 1000, queue);
+      const p2 = reportUnary(testConfig, mockClient, "/path/Method2", mockMessage, 1000, queue);
+      const p3 = reportUnary(testConfig, mockClient, "/path/Method3", mockMessage, 1000, queue);
+
+      const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+
+      expect(r1.toString()).toBe("response-0");
+      expect(r2.toString()).toBe("response-1");
+      expect(r3.toString()).toBe("response-2");
+      expect(callOrder).toEqual([0, 1, 2]);
+      expect(mockClient.makeUnaryRequest).toHaveBeenCalledTimes(3);
+    });
+
+    it("should never execute two calls concurrently when a queue is provided", async () => {
+      const queue = new MessageQueue();
+      let inFlight = 0;
+      let maxInFlight = 0;
+
+      mockClient.makeUnaryRequest.mockImplementation(
+        (_path: string, _ser: any, _des: any, _msg: any, _meta: any, _opts: any, cb: any) => {
+          inFlight++;
+          maxInFlight = Math.max(maxInFlight, inFlight);
+          // Resolve asynchronously
+          Promise.resolve().then(() => {
+            inFlight--;
+            cb(null, Buffer.from("ok"));
+          });
+        }
+      );
+
+      await Promise.all([
+        reportUnary(testConfig, mockClient, "/path/M1", mockMessage, 1000, queue),
+        reportUnary(testConfig, mockClient, "/path/M2", mockMessage, 1000, queue),
+        reportUnary(testConfig, mockClient, "/path/M3", mockMessage, 1000, queue),
+        reportUnary(testConfig, mockClient, "/path/M4", mockMessage, 1000, queue),
+        reportUnary(testConfig, mockClient, "/path/M5", mockMessage, 1000, queue),
+      ]);
+
+      // The queue must hold back subsequent calls until the previous one completes
+      expect(maxInFlight).toBe(1);
+    });
+
+    it("should remain unaffected by a failing call - subsequent calls still execute in order", async () => {
+      const queue = new MessageQueue();
+      const completedPaths: string[] = [];
+      let callCount = 0;
+
+      mockClient.makeUnaryRequest.mockImplementation(
+        (path: string, _ser: any, _des: any, _msg: any, _meta: any, _opts: any, cb: any) => {
+          callCount++;
+          Promise.resolve().then(() => {
+            if (callCount === 2) {
+              const err = new Error("middle call failed") as grpc.ServiceError;
+              // Use a non-retryable code so we don't trigger backoff timers
+              err.code = grpc.status.INVALID_ARGUMENT;
+              cb(err, null);
+            } else {
+              completedPaths.push(path);
+              cb(null, Buffer.from("ok"));
+            }
+          });
+        }
+      );
+
+      const results = await Promise.allSettled([
+        reportUnary(testConfig, mockClient, "/path/First",  mockMessage, 1000, queue),
+        reportUnary(testConfig, mockClient, "/path/Second", mockMessage, 1000, queue),
+        reportUnary(testConfig, mockClient, "/path/Third",  mockMessage, 1000, queue),
+      ]);
+
+      expect(results[0].status).toBe("fulfilled");
+      expect(results[1].status).toBe("rejected");
+      expect(results[2].status).toBe("fulfilled");
+      // First and Third must have completed, in order
+      expect(completedPaths).toEqual(["/path/First", "/path/Third"]);
+    });
+
+    it("should behave identically to the no-queue path for a single call", async () => {
+      const queue = new MessageQueue();
+
+      mockClient.makeUnaryRequest.mockImplementation(
+        (_path: string, _ser: any, _des: any, _msg: any, _meta: any, _opts: any, cb: any) => {
+          cb(null, Buffer.from("single-response"));
+        }
+      );
+
+      const response = await reportUnary(
+        testConfig, mockClient, testPath, mockMessage, 1000, queue
+      );
+
+      expect(response.toString()).toBe("single-response");
+      expect(mockClient.makeUnaryRequest).toHaveBeenCalledTimes(1);
     });
   });
 });

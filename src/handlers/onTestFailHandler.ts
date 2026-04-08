@@ -8,6 +8,7 @@ import {
 import * as grpc from "@grpc/grpc-js";
 import { TestFailureEventRequest } from "@stanterprise/protobuf/testsystem/v1/events";
 import { reportUnary } from "../client/grpcClient";
+import { MessageQueue } from "../client/messageQueue";
 
 export function handleOnTestFailEvent(
   test: TestCase,
@@ -15,6 +16,7 @@ export function handleOnTestFailEvent(
   runId: string,
   grpcClient: grpc.Client,
   options: StanterpriseReporterOptions,
+  queue?: MessageQueue,
 ) {
   // Extract failure details
   const { errorMessage: failureMessage, stackTrace } = extractErrorInfo(result);
@@ -40,5 +42,6 @@ export function handleOnTestFailEvent(
     "/testsystem.v1.observer.TestEventCollector/ReportTestFailure",
     request,
     options.grpcTimeout,
+    queue,
   ).catch((e) => console.error("Failed to report test failure", e));
 }
