@@ -3,7 +3,7 @@ import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
 import { reportUnary } from "../client/grpcClient";
 import { MessageQueue } from "../client/messageQueue";
-import { createDuration, createTimestampFromMs } from "../utils";
+import { createDuration, createTimestampFromMs, toMetadataMap } from "../utils";
 import { TestRunEndEventRequest } from "@stanterprise/protobuf/testsystem/v1/events";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
 
@@ -28,6 +28,7 @@ export function handleOnEndEvent(
   client: grpc.Client,
   options: StanterpriseReporterOptions,
   queue?: MessageQueue,
+  metadata?: Record<string, string>,
 ) {
   // Validate and sanitize inputs to prevent serialization failures
   const startTimeMs = result.startTime?.getTime();
@@ -48,6 +49,7 @@ export function handleOnEndEvent(
     final_status: mapTestStatus(result.status),
     start_time: createTimestampFromMs(validStartTimeMs),
     duration: createDuration(validDuration),
+    metadata: toMetadataMap(metadata || {}),
   });
   reportUnary(
     options,
