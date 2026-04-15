@@ -37,6 +37,7 @@ export default class StanterpriseReporter implements Reporter {
 
   // Sequential message queue – guarantees ordered delivery to the server
   private messageQueue = new MessageQueue();
+  private metadata: Record<string, string> = {};
 
   constructor(options: StanterpriseReporterOptions = {}) {
     this.options = defineOptions(options);
@@ -58,6 +59,10 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   onBegin(config: FullConfig, suite: Suite): void {
+    if (config.shard) {
+      this.metadata["shard.current"] = String(config.shard.current);
+      this.metadata["shard.total"] = String(config.shard.total);
+    }
     // Lazily create the client if enabled.
     if (this.options.grpcEnabled) {
       this.grpcClient = getClient(this.options);
@@ -132,7 +137,14 @@ export default class StanterpriseReporter implements Reporter {
     }
 
     if (this.options.grpcEnabled) {
-      handleOnEndEvent(result, this.runId, this.grpcClient!, this.options, this.messageQueue);
+      handleOnEndEvent(
+        result,
+        this.runId,
+        this.grpcClient!,
+        this.options,
+        this.messageQueue,
+        this.metadata,
+      );
     }
 
     return Promise.resolve();
@@ -241,7 +253,13 @@ export default class StanterpriseReporter implements Reporter {
       console.error(`Stack trace: ${error.stack}`);
     }
     if (this.options.grpcEnabled) {
-      handleOnErrorEvent(error, this.runId, this.grpcClient!, this.options, this.messageQueue);
+      handleOnErrorEvent(
+        error,
+        this.runId,
+        this.grpcClient!,
+        this.options,
+        this.messageQueue,
+      );
     }
   }
 
