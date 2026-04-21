@@ -44,7 +44,7 @@ function identifyAddress(providedOptions: StanterpriseReporterOptions): string {
   }
   if (providedOptions.grpcHost) {
     const host = providedOptions.grpcHost;
-    const port = providedOptions.grpcPort || 50051;
+    const port = providedOptions.grpcPort ?? 50051;
     return `${host}:${port}`;
   }
 

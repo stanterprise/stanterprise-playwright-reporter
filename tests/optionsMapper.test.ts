@@ -87,6 +87,16 @@ describe("defineOptions", () => {
     expect(result.grpcEnabled).toBe(true);
   });
 
+  it("should prefer STANTERPRISE_GRPC_ADDRESS over STANTERPRISE_GRPC_HOST and STANTERPRISE_GRPC_PORT", () => {
+    process.env.STANTERPRISE_GRPC_ADDRESS = "env-address:50051";
+    process.env.STANTERPRISE_GRPC_HOST = "env-host";
+    process.env.STANTERPRISE_GRPC_PORT = "7000";
+
+    const result = defineOptions({});
+
+    expect(result.grpcAddress).toBe("env-address:50051");
+  });
+
   it("should build the gRPC address from environment host and port", () => {
     process.env.STANTERPRISE_GRPC_HOST = "env-host";
     process.env.STANTERPRISE_GRPC_PORT = "7000";
