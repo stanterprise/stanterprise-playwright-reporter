@@ -63,6 +63,7 @@ export default defineConfig({
 You can also configure the reporter using environment variables:
 
 - `STANTERPRISE_GRPC_ADDRESS`: gRPC server address (default: `localhost:50051`)
+- `STANTERPRISE_GRPC_HOST`: gRPC server host
 - `STANTERPRISE_GRPC_ENABLED`: Enable/disable gRPC reporting (default: `true`)
 - `STANTERPRISE_META_*`: Custom metadata fields for test runs (prefix will be stripped)
 - `STANTERPRISE_DEBUG`: Enable debug mode — captures outgoing gRPC messages to a JSONL file (default: `false`; case-insensitive: `"true"`, `"TRUE"`, `"True"` all work)
