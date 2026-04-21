@@ -6,22 +6,19 @@ import { StanterpriseReporterOptions } from "../types";
  * @returns Mapped and completed StanterpriseReporterOptions
  */
 export default function defineOptions(
-  providedOptions: StanterpriseReporterOptions
+  providedOptions: StanterpriseReporterOptions,
 ): StanterpriseReporterOptions {
   const result: StanterpriseReporterOptions = {};
-  result.grpcAddress =
-    providedOptions.grpcAddress ||
-    process.env.STANTERPRISE_GRPC_ADDRESS ||
-    "localhost:50051";
+  result.grpcAddress = identifyAddress(providedOptions);
   result.grpcEnabled =
     providedOptions.grpcEnabled ??
     (process.env.STANTERPRISE_GRPC_ENABLED || "true").toLowerCase() !== "false";
-  result.grpcTimeout = providedOptions.grpcTimeout || 1000;
-  result.grpcMaxMessageSize = providedOptions.grpcMaxMessageSize || 104857600;
-  result.maxAttachmentSize = providedOptions.maxAttachmentSize || 10485760;
-  result.verbose = providedOptions.verbose || false;
+  result.grpcTimeout = providedOptions.grpcTimeout ?? 1000;
+  result.grpcMaxMessageSize = providedOptions.grpcMaxMessageSize ?? 104_857_600;
+  result.maxAttachmentSize = providedOptions.maxAttachmentSize ?? 10_485_760;
+  result.verbose = providedOptions.verbose ?? false;
   result.grpcMaxRetries = providedOptions.grpcMaxRetries ?? 3;
-  result.grpcRetryDelay = providedOptions.grpcRetryDelay || 100;
+  result.grpcRetryDelay = providedOptions.grpcRetryDelay ?? 100;
   result.debug =
     providedOptions.debug ??
     (process.env.STANTERPRISE_DEBUG || "").toLowerCase() === "true";
@@ -31,4 +28,25 @@ export default function defineOptions(
     "stanterprise-debug.jsonl";
 
   return result;
+}
+
+function identifyAddress(providedOptions: StanterpriseReporterOptions): string {
+  if (providedOptions.grpcAddress) {
+    return providedOptions.grpcAddress;
+  }
+  if (process.env.STANTERPRISE_GRPC_ADDRESS) {
+    return process.env.STANTERPRISE_GRPC_ADDRESS;
+  }
+  if (process.env.STANTERPRISE_GRPC_HOST) {
+    const host = process.env.STANTERPRISE_GRPC_HOST;
+    const port = process.env.STANTERPRISE_GRPC_PORT || "50051";
+    return `${host}:${port}`;
+  }
+  if (providedOptions.grpcHost) {
+    const host = providedOptions.grpcHost;
+    const port = providedOptions.grpcPort ?? 50051;
+    return `${host}:${port}`;
+  }
+
+  return "localhost:50051";
 }
