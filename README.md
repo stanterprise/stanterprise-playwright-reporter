@@ -49,7 +49,7 @@ export default defineConfig({
         grpcMaxMessageSize: 104857600, // Max message size (100MB default)
         maxAttachmentSize: 10485760, // Max attachment size (10MB default)
         verbose: false, // Enable verbose logging
-        debug: false,          // Enable debug mode (writes gRPC messages to JSONL file)
+        debug: false, // Enable debug mode (writes gRPC messages to JSONL file)
         debugFile: "stanterprise-debug.jsonl", // Path for debug JSONL output
       },
     ],
@@ -89,18 +89,19 @@ npx playwright test
 
 ## Configuration Options
 
-| Option               | Type    | Default           | Description                                         |
-| -------------------- | ------- | ----------------- | --------------------------------------------------- |
-| `grpcAddress`        | string  | `localhost:50051` | gRPC server address                                 |
-| `grpcEnabled`        | boolean | `true`            | Enable/disable gRPC reporting                       |
-| `grpcTimeout`        | number  | `1000`            | Timeout for gRPC calls in milliseconds              |
-| `grpcMaxMessageSize` | number  | `104857600`       | Max message size in bytes (100MB default)           |
-| `maxAttachmentSize`  | number  | `10485760`        | Max attachment content size in bytes (10MB default) |
-| `verbose`            | boolean | `false`           | Enable verbose logging                              |
-| `grpcMaxRetries`     | number  | `3`               | Maximum number of retry attempts for failed gRPC calls  |
-| `grpcRetryDelay`     | number  | `100`             | Initial delay for retries in ms (uses exponential backoff) |
-| `debug`              | boolean | `false`           | Enable debug mode — writes all outgoing gRPC messages to a JSONL file. **Warning:** output may include sensitive request payloads and grow very large. Use only in controlled environments. |
-| `debugFile`          | string  | `stanterprise-debug.jsonl` | File path for debug JSONL output. Parent directories are created automatically if they do not exist. |
+| Option               | Type    | Default                    | Description                                                                                                                                                                                 |
+| -------------------- | ------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `grpcAddress`        | string  | `localhost:50051`          | gRPC server address                                                                                                                                                                         |
+| `grpcHost`           | string  |                            | gRPC Host                                                                                                                                                                                   |
+| `grpcEnabled`        | boolean | `true`                     | Enable/disable gRPC reporting                                                                                                                                                               |
+| `grpcTimeout`        | number  | `1000`                     | Timeout for gRPC calls in milliseconds                                                                                                                                                      |
+| `grpcMaxMessageSize` | number  | `104857600`                | Max message size in bytes (100MB default)                                                                                                                                                   |
+| `maxAttachmentSize`  | number  | `10485760`                 | Max attachment content size in bytes (10MB default)                                                                                                                                         |
+| `verbose`            | boolean | `false`                    | Enable verbose logging                                                                                                                                                                      |
+| `grpcMaxRetries`     | number  | `3`                        | Maximum number of retry attempts for failed gRPC calls                                                                                                                                      |
+| `grpcRetryDelay`     | number  | `100`                      | Initial delay for retries in ms (uses exponential backoff)                                                                                                                                  |
+| `debug`              | boolean | `false`                    | Enable debug mode — writes all outgoing gRPC messages to a JSONL file. **Warning:** output may include sensitive request payloads and grow very large. Use only in controlled environments. |
+| `debugFile`          | string  | `stanterprise-debug.jsonl` | File path for debug JSONL output. Parent directories are created automatically if they do not exist.                                                                                        |
 
 ### Retry Configuration
 
@@ -112,10 +113,11 @@ The reporter automatically retries failed gRPC calls for transient errors using 
 **Exponential backoff formula**: `grpcRetryDelay * (2 ^ attemptNumber)`
 
 Example with default settings (`grpcRetryDelay: 100`, `grpcMaxRetries: 3`):
+
 - Initial attempt: Immediate
-- Retry 1: Wait 100ms (100 * 2^0)
-- Retry 2: Wait 200ms (100 * 2^1)
-- Retry 3: Wait 400ms (100 * 2^2)
+- Retry 1: Wait 100ms (100 \* 2^0)
+- Retry 2: Wait 200ms (100 \* 2^1)
+- Retry 3: Wait 400ms (100 \* 2^2)
 
 ```typescript
 export default defineConfig({
@@ -123,9 +125,9 @@ export default defineConfig({
     [
       "stanterprise-playwright-reporter",
       {
-        grpcMaxRetries: 5,        // Try up to 5 times
-        grpcRetryDelay: 200,      // Start with 200ms delay
-        verbose: true,            // Log retry attempts
+        grpcMaxRetries: 5, // Try up to 5 times
+        grpcRetryDelay: 200, // Start with 200ms delay
+        verbose: true, // Log retry attempts
       },
     ],
   ],
@@ -136,7 +138,7 @@ To disable retries:
 
 ```typescript
 {
-  grpcMaxRetries: 0  // No retries, fail fast
+  grpcMaxRetries: 0; // No retries, fail fast
 }
 ```
 

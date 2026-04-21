@@ -13,6 +13,19 @@ export interface StanterpriseReporterOptions {
   grpcAddress?: string;
 
   /**
+   * Optional separate host and port for gRPC, which override the host and port parts of grpcAddress if provided.
+   * This allows specifying gRPC connection details separately from other potential uses of grpcAddress.
+   */
+  grpcHost?: string; // Optional separate host for gRPC, overrides host part of grpcAddress if provided
+
+  /**
+   * Optional separate port for gRPC, which overrides the port part of grpcAddress if provided.
+   * This allows specifying gRPC connection details separately from other potential uses of grpcAddress.
+   * @default 50051
+   */
+  grpcPort?: number; // Optional separate port for gRPC, overrides port part of grpcAddress if provided
+
+  /**
    * Whether gRPC reporting is enabled
    * @default true or process.env.STANTERPRISE_GRPC_ENABLED !== "false"
    */

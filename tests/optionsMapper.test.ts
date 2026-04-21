@@ -9,6 +9,8 @@ describe("defineOptions", () => {
     // Clear any environment variables that might affect tests
     delete process.env.STANTERPRISE_GRPC_ADDRESS;
     delete process.env.STANTERPRISE_GRPC_ENABLED;
+    delete process.env.STANTERPRISE_GRPC_HOST;
+    delete process.env.STANTERPRISE_GRPC_PORT;
     delete process.env.STANTERPRISE_DEBUG;
     delete process.env.STANTERPRISE_DEBUG_FILE;
   });
@@ -43,8 +45,8 @@ describe("defineOptions", () => {
       grpcAddress: "example.com:50051",
       grpcEnabled: false,
       grpcTimeout: 2000,
-      grpcMaxMessageSize: 200000000,
-      maxAttachmentSize: 20000000,
+      grpcMaxMessageSize: 200_000_000,
+      maxAttachmentSize: 20_000_000,
       verbose: true,
       grpcMaxRetries: 10,
       grpcRetryDelay: 500,
@@ -55,8 +57,8 @@ describe("defineOptions", () => {
     expect(result.grpcAddress).toBe("example.com:50051");
     expect(result.grpcEnabled).toBe(false);
     expect(result.grpcTimeout).toBe(2000);
-    expect(result.grpcMaxMessageSize).toBe(200000000);
-    expect(result.maxAttachmentSize).toBe(20000000);
+    expect(result.grpcMaxMessageSize).toBe(200_000_000);
+    expect(result.maxAttachmentSize).toBe(20_000_000);
     expect(result.verbose).toBe(true);
     expect(result.grpcMaxRetries).toBe(10);
     expect(result.grpcRetryDelay).toBe(500);
@@ -83,6 +85,62 @@ describe("defineOptions", () => {
 
     expect(result.grpcAddress).toBe("config-server.com:50051");
     expect(result.grpcEnabled).toBe(true);
+  });
+
+  it("should build the gRPC address from environment host and port", () => {
+    process.env.STANTERPRISE_GRPC_HOST = "env-host";
+    process.env.STANTERPRISE_GRPC_PORT = "7000";
+
+    const result = defineOptions({});
+
+    expect(result.grpcAddress).toBe("env-host:7000");
+  });
+
+  it("should use the default port when only environment host is provided", () => {
+    process.env.STANTERPRISE_GRPC_HOST = "env-host";
+
+    const result = defineOptions({});
+
+    expect(result.grpcAddress).toBe("env-host:50051");
+  });
+
+  it("should build the gRPC address from provided host and port", () => {
+    const result = defineOptions({
+      grpcHost: "config-host",
+      grpcPort: 6000,
+    });
+
+    expect(result.grpcAddress).toBe("config-host:6000");
+  });
+
+  it("should use the default port when only a provided host is set", () => {
+    const result = defineOptions({
+      grpcHost: "config-host",
+    });
+
+    expect(result.grpcAddress).toBe("config-host:50051");
+  });
+
+  it("should prefer a provided grpcAddress over a provided host and port", () => {
+    const result = defineOptions({
+      grpcAddress: "config-address:50051",
+      grpcHost: "config-host",
+      grpcPort: 6000,
+    });
+
+    expect(result.grpcAddress).toBe("config-address:50051");
+  });
+
+  it("should prefer environment host and port over provided host and port", () => {
+    process.env.STANTERPRISE_GRPC_HOST = "env-host";
+    process.env.STANTERPRISE_GRPC_PORT = "7000";
+
+    const result = defineOptions({
+      grpcHost: "config-host",
+      grpcPort: 6000,
+    });
+
+    expect(result.grpcAddress).toBe("env-host:7000");
   });
 
   it("should handle grpcMaxRetries of 0", () => {
@@ -126,7 +184,10 @@ describe("defineOptions", () => {
     process.env.STANTERPRISE_DEBUG = "true";
     process.env.STANTERPRISE_DEBUG_FILE = "env-debug.jsonl";
 
-    const result = defineOptions({ debug: false, debugFile: "config-debug.jsonl" });
+    const result = defineOptions({
+      debug: false,
+      debugFile: "config-debug.jsonl",
+    });
 
     expect(result.debug).toBe(false);
     expect(result.debugFile).toBe("config-debug.jsonl");
