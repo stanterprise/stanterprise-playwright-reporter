@@ -1,7 +1,7 @@
 /**
  * Utility functions for processing test attachments
  */
-import type { TestResult } from "@playwright/test/reporter";
+import type { TestResult, TestStep } from "@playwright/test/reporter";
 import { common } from "@stanterprise/protobuf";
 
 const Attachment = common.v1.common.Attachment;
@@ -13,12 +13,12 @@ const BYTES_PER_MB = 1048576;
 
 /**
  * Process Playwright test attachments into protobuf Attachment objects
- * @param result Test result containing attachments
+ * @param result Test result or test step containing attachments
  * @param maxAttachmentSize Maximum size for attachment content (default 1MB, reduced from 10MB)
  */
 export function processAttachments(
-  result: TestResult,
-  maxAttachmentSize: number = 1048576 // 1MB default (reduced from 10MB to prevent large payloads)
+  result: TestResult | TestStep,
+  maxAttachmentSize: number = 1048576, // 1MB default (reduced from 10MB to prevent large payloads)
 ): InstanceType<typeof Attachment>[] {
   const attachments: InstanceType<typeof Attachment>[] = [];
 
@@ -49,11 +49,11 @@ export function processAttachments(
       if (bodySize > maxAttachmentSize) {
         console.warn(
           `Attachment "${attachment.name}" (${(bodySize / BYTES_PER_MB).toFixed(
-            2
+            2,
           )}MB) exceeds max size ` +
             `(${(maxAttachmentSize / BYTES_PER_MB).toFixed(
-              2
-            )}MB) and has no path. Skipping content.`
+              2,
+            )}MB) and has no path. Skipping content.`,
         );
         // Still add the attachment metadata without content
         attachments.push(att);
@@ -64,11 +64,11 @@ export function processAttachments(
       if (totalAttachmentSize + bodySize > MAX_TOTAL_ATTACHMENT_SIZE) {
         console.warn(
           `Attachment "${attachment.name}" (${(bodySize / BYTES_PER_MB).toFixed(
-            2
+            2,
           )}MB) would exceed total attachment size limit ` +
             `(${(MAX_TOTAL_ATTACHMENT_SIZE / BYTES_PER_MB).toFixed(
-              2
-            )}MB). Skipping content.`
+              2,
+            )}MB). Skipping content.`,
         );
         attachments.push(att);
         continue;
