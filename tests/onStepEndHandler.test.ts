@@ -65,7 +65,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -94,7 +94,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -130,7 +130,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -159,7 +159,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -172,7 +172,8 @@ describe("handleOnStepEndEvent", () => {
         duration: 1000,
         error: {
           message: "Test failed",
-          stack: "Error: Test failed\n    at test.ts:10:5\n    at Object.<anonymous>",
+          stack:
+            "Error: Test failed\n    at test.ts:10:5\n    at Object.<anonymous>",
         },
         annotations: [],
         steps: [],
@@ -187,7 +188,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -214,7 +215,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -227,7 +228,8 @@ describe("handleOnStepEndEvent", () => {
         duration: 1000,
         error: {
           message: "Test failed",
-          snippet: "  10 |   expect(result).toBe(true);\n> 11 |   expect(false).toBe(true);\n     |                 ^\n  12 |",
+          snippet:
+            "  10 |   expect(result).toBe(true);\n> 11 |   expect(false).toBe(true);\n     |                 ^\n  12 |",
         },
         annotations: [],
         steps: [],
@@ -242,7 +244,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -274,7 +276,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -290,7 +292,8 @@ describe("handleOnStepEndEvent", () => {
           stack:
             "Error: Comprehensive error\n    at test.ts:10:5\n    at Object.<anonymous>",
           value: "Error value",
-          snippet: "  10 |   code snippet here\n> 11 |   error line\n     |   ^\n  12 |",
+          snippet:
+            "  10 |   code snippet here\n> 11 |   error line\n     |   ^\n  12 |",
           location: {
             file: "/path/to/test.ts",
             line: 11,
@@ -310,7 +313,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -343,7 +346,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
 
@@ -376,7 +379,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -406,7 +409,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -441,7 +444,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -470,7 +473,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -498,7 +501,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -525,7 +528,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -549,7 +552,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -573,7 +576,7 @@ describe("handleOnStepEndEvent", () => {
           step,
           "run-123",
           mockClient,
-          mockOptions
+          mockOptions,
         );
       }).not.toThrow();
     });
@@ -600,10 +603,353 @@ describe("handleOnStepEndEvent", () => {
             step,
             "run-123",
             mockClient,
-            mockOptions
+            mockOptions,
           );
         }).not.toThrow();
       });
+    });
+  });
+
+  describe("step attachment handling", () => {
+    it("should handle step with no attachments", () => {
+      const step: TestStep = {
+        title: "Step without attachments",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step without attachments"],
+        attachments: [],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should handle step with path-based screenshot attachment", () => {
+      const step: TestStep = {
+        title: "Step with screenshot",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with screenshot"],
+        attachments: [
+          {
+            name: "screenshot",
+            contentType: "image/png",
+            path: "/path/to/screenshot.png",
+          },
+        ],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should handle step with body-based attachment", () => {
+      const bodyContent = Buffer.from("test trace data");
+      const step: TestStep = {
+        title: "Step with trace",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with trace"],
+        attachments: [
+          {
+            name: "trace",
+            contentType: "application/zip",
+            body: bodyContent,
+          },
+        ],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should handle step with multiple attachments", () => {
+      const step: TestStep = {
+        title: "Step with multiple attachments",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with multiple attachments"],
+        attachments: [
+          {
+            name: "screenshot1",
+            contentType: "image/png",
+            path: "/path/to/screenshot1.png",
+          },
+          {
+            name: "screenshot2",
+            contentType: "image/png",
+            path: "/path/to/screenshot2.png",
+          },
+          {
+            name: "video",
+            contentType: "video/webm",
+            path: "/path/to/video.webm",
+          },
+        ],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should handle step with large attachment body", () => {
+      // Create a 2MB body that exceeds default 1MB limit
+      const largeBody = Buffer.alloc(2 * 1024 * 1024);
+      const step: TestStep = {
+        title: "Step with large attachment",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with large attachment"],
+        attachments: [
+          {
+            name: "large-video",
+            contentType: "video/webm",
+            body: largeBody,
+          },
+        ],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should handle step with mixed path and body attachments", () => {
+      const bodyContent = Buffer.from("log content");
+      const step: TestStep = {
+        title: "Step with mixed attachments",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with mixed attachments"],
+        attachments: [
+          {
+            name: "screenshot",
+            contentType: "image/png",
+            path: "/path/to/screenshot.png",
+          },
+          {
+            name: "log",
+            contentType: "text/plain",
+            body: bodyContent,
+          },
+        ],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should handle step with attachment that has both path and body", () => {
+      const bodyContent = Buffer.from("content");
+      const step: TestStep = {
+        title: "Step with path and body",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with path and body"],
+        attachments: [
+          {
+            name: "screenshot",
+            contentType: "image/png",
+            path: "/path/to/screenshot.png",
+            body: bodyContent,
+          },
+        ],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should respect custom maxAttachmentSize option", () => {
+      // Create a 500KB body
+      const mediumBody = Buffer.alloc(500 * 1024);
+      const step: TestStep = {
+        title: "Step with custom size limit",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with custom size limit"],
+        attachments: [
+          {
+            name: "medium-file",
+            contentType: "application/octet-stream",
+            body: mediumBody,
+          },
+        ],
+      } as unknown as TestStep;
+
+      const customOptions = {
+        ...mockOptions,
+        maxAttachmentSize: 256 * 1024, // 256KB limit
+      };
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          customOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should handle step with attachment but undefined body and path", () => {
+      const step: TestStep = {
+        title: "Step with incomplete attachment",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with incomplete attachment"],
+        attachments: [
+          {
+            name: "incomplete",
+            contentType: "application/octet-stream",
+          },
+        ],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
+    });
+
+    it("should handle step with various attachment types", () => {
+      const step: TestStep = {
+        title: "Step with various attachment types",
+        category: "test.step",
+        startTime: new Date("2023-01-01T00:00:00Z"),
+        duration: 1000,
+        annotations: [],
+        steps: [],
+        titlePath: () => ["Step with various attachment types"],
+        attachments: [
+          {
+            name: "screenshot",
+            contentType: "image/png",
+            path: "/path/to/screenshot.png",
+          },
+          {
+            name: "video",
+            contentType: "video/webm",
+            path: "/path/to/video.webm",
+          },
+          {
+            name: "trace",
+            contentType: "application/zip",
+            path: "/path/to/trace.zip",
+          },
+          {
+            name: "log",
+            contentType: "text/plain",
+            body: Buffer.from("log content"),
+          },
+          {
+            name: "json-data",
+            contentType: "application/json",
+            body: Buffer.from('{"test": "data"}'),
+          },
+        ],
+      } as unknown as TestStep;
+
+      expect(() => {
+        handleOnStepEndEvent(
+          mockTest,
+          mockResult,
+          step,
+          "run-123",
+          mockClient,
+          mockOptions,
+        );
+      }).not.toThrow();
     });
   });
 });

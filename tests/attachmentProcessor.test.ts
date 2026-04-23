@@ -5,7 +5,7 @@ import {
   processAttachments,
   extractErrorInfo,
 } from "../src/utils/attachmentProcessor";
-import type { TestResult } from "@playwright/test/reporter";
+import type { TestResult, TestStep } from "@playwright/test/reporter";
 
 describe("attachmentProcessor", () => {
   describe("processAttachments", () => {
@@ -98,7 +98,7 @@ describe("attachmentProcessor", () => {
       // Use 1MB limit
       const attachments = processAttachments(
         result as TestResult,
-        1 * 1024 * 1024
+        1 * 1024 * 1024,
       );
       expect(attachments).toHaveLength(1);
       expect(attachments[0].name).toBe("large-video");
@@ -123,7 +123,7 @@ describe("attachmentProcessor", () => {
       // Use 1MB limit
       const attachments = processAttachments(
         result as TestResult,
-        1 * 1024 * 1024
+        1 * 1024 * 1024,
       );
       expect(attachments).toHaveLength(1);
       expect(attachments[0].name).toBe("small-screenshot");
@@ -216,6 +216,271 @@ describe("attachmentProcessor", () => {
     });
   });
 
+  describe("processAttachments with TestStep", () => {
+    it("should process attachments from TestStep with no attachments", () => {
+      const step: Partial<TestStep> = {
+        attachments: [],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(0);
+    });
+
+    it("should process attachments from TestStep with undefined attachments", () => {
+      const step: Partial<TestStep> = {};
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(0);
+    });
+
+    it("should process TestStep attachment with path", () => {
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "step-screenshot",
+            contentType: "image/png",
+            path: "/path/to/step-screenshot.png",
+          },
+        ],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("step-screenshot");
+      expect(attachments[0].mime_type).toBe("image/png");
+      expect(attachments[0].uri).toBe("/path/to/step-screenshot.png");
+      expect(attachments[0].content).toEqual(new Uint8Array());
+    });
+
+    it("should process TestStep attachment with body content", () => {
+      const bodyContent = Buffer.from("step trace data");
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "step-trace",
+            contentType: "application/zip",
+            body: bodyContent,
+          },
+        ],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("step-trace");
+      expect(attachments[0].mime_type).toBe("application/zip");
+      expect(attachments[0].content).toEqual(bodyContent);
+    });
+
+    it("should process multiple TestStep attachments", () => {
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "step-screenshot1",
+            contentType: "image/png",
+            path: "/path/to/step-screenshot1.png",
+          },
+          {
+            name: "step-screenshot2",
+            contentType: "image/png",
+            path: "/path/to/step-screenshot2.png",
+          },
+          {
+            name: "step-log",
+            contentType: "text/plain",
+            body: Buffer.from("step log content"),
+          },
+        ],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(3);
+      expect(attachments[0].name).toBe("step-screenshot1");
+      expect(attachments[1].name).toBe("step-screenshot2");
+      expect(attachments[2].name).toBe("step-log");
+    });
+
+    it("should omit content for large TestStep attachment bodies", () => {
+      // Create a 5MB body
+      const largeBody = Buffer.alloc(5 * 1024 * 1024);
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "large-step-video",
+            contentType: "video/webm",
+            body: largeBody,
+          },
+        ],
+      };
+
+      // Use 1MB limit
+      const attachments = processAttachments(step as TestStep, 1 * 1024 * 1024);
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("large-step-video");
+      // Content should be empty when size limit is exceeded
+      expect(attachments[0].content).toEqual(new Uint8Array());
+    });
+
+    it("should prefer path over body in TestStep attachments", () => {
+      const bodyContent = Buffer.from("content");
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "step-screenshot",
+            contentType: "image/png",
+            path: "/path/to/step-file.png",
+            body: bodyContent,
+          },
+        ],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].uri).toBe("/path/to/step-file.png");
+      // Content should be empty when path is used
+      expect(attachments[0].content).toEqual(new Uint8Array());
+    });
+
+    it("should respect total size limit for TestStep attachments", () => {
+      // Create 3 attachments of 1MB each
+      const attachment1MB = Buffer.alloc(1 * 1024 * 1024);
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "step-attachment1",
+            contentType: "application/octet-stream",
+            body: attachment1MB,
+          },
+          {
+            name: "step-attachment2",
+            contentType: "application/octet-stream",
+            body: attachment1MB,
+          },
+          {
+            name: "step-attachment3",
+            contentType: "application/octet-stream",
+            body: attachment1MB,
+          },
+        ],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+
+      // All 3 attachments should be present
+      expect(attachments).toHaveLength(3);
+
+      // First 2 should have content (within 2MB total limit)
+      expect(attachments[0].content).toEqual(attachment1MB);
+      expect(attachments[1].content).toEqual(attachment1MB);
+
+      // Third should be skipped (would exceed 2MB limit)
+      expect(attachments[2].content).toEqual(new Uint8Array());
+    });
+
+    it("should handle TestStep with mixed path and body attachments", () => {
+      const bodyContent = Buffer.from("log data");
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "step-video",
+            contentType: "video/webm",
+            path: "/path/to/step-video.webm",
+          },
+          {
+            name: "step-log",
+            contentType: "text/plain",
+            body: bodyContent,
+          },
+        ],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(2);
+
+      // Path attachment
+      expect(attachments[0].uri).toBe("/path/to/step-video.webm");
+      expect(attachments[0].content).toEqual(new Uint8Array());
+
+      // Body attachment
+      expect(attachments[1].content).toEqual(bodyContent);
+    });
+
+    it("should handle TestStep attachment with no path or body", () => {
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "empty-attachment",
+            contentType: "application/octet-stream",
+          },
+        ],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].name).toBe("empty-attachment");
+      expect(attachments[0].content).toEqual(new Uint8Array());
+      expect(attachments[0].uri).toBe("");
+    });
+
+    it("should respect custom maxAttachmentSize for TestStep", () => {
+      // Create a 500KB body
+      const mediumBody = Buffer.alloc(500 * 1024);
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "medium-file",
+            contentType: "application/octet-stream",
+            body: mediumBody,
+          },
+        ],
+      };
+
+      // Use 256KB limit (smaller than body size)
+      const attachments = processAttachments(step as TestStep, 256 * 1024);
+      expect(attachments).toHaveLength(1);
+      expect(attachments[0].content).toEqual(new Uint8Array());
+    });
+
+    it("should handle various content types in TestStep attachments", () => {
+      const step: Partial<TestStep> = {
+        attachments: [
+          {
+            name: "image",
+            contentType: "image/png",
+            body: Buffer.from("png data"),
+          },
+          {
+            name: "video",
+            contentType: "video/webm",
+            path: "/path/to/video.webm",
+          },
+          {
+            name: "trace",
+            contentType: "application/zip",
+            path: "/path/to/trace.zip",
+          },
+          {
+            name: "log",
+            contentType: "text/plain",
+            body: Buffer.from("log content"),
+          },
+          {
+            name: "json",
+            contentType: "application/json",
+            body: Buffer.from('{"data": "value"}'),
+          },
+        ],
+      };
+
+      const attachments = processAttachments(step as TestStep);
+      expect(attachments).toHaveLength(5);
+      expect(attachments[0].mime_type).toBe("image/png");
+      expect(attachments[1].mime_type).toBe("video/webm");
+      expect(attachments[2].mime_type).toBe("application/zip");
+      expect(attachments[3].mime_type).toBe("text/plain");
+      expect(attachments[4].mime_type).toBe("application/json");
+    });
+  });
+
   describe("extractErrorInfo", () => {
     it("should return empty values when no errors", () => {
       const result: Partial<TestResult> = {
@@ -223,7 +488,7 @@ describe("attachmentProcessor", () => {
       };
 
       const { errorMessage, stackTrace, errors } = extractErrorInfo(
-        result as TestResult
+        result as TestResult,
       );
       expect(errorMessage).toBe("");
       expect(stackTrace).toBe("");
@@ -241,7 +506,7 @@ describe("attachmentProcessor", () => {
       };
 
       const { errorMessage, stackTrace, errors } = extractErrorInfo(
-        result as TestResult
+        result as TestResult,
       );
       expect(errorMessage).toBe("Test failed");
       expect(stackTrace).toBe("Error: Test failed\n    at test.ts:10:5");
@@ -264,7 +529,7 @@ describe("attachmentProcessor", () => {
       };
 
       const { errorMessage, stackTrace, errors } = extractErrorInfo(
-        result as TestResult
+        result as TestResult,
       );
       expect(errorMessage).toBe("Error 1\nError 2");
       expect(stackTrace).toBe("Stack 1\nStack 2");
@@ -282,7 +547,7 @@ describe("attachmentProcessor", () => {
       };
 
       const { errorMessage, stackTrace, errors } = extractErrorInfo(
-        result as TestResult
+        result as TestResult,
       );
       expect(errorMessage).toBe("");
       expect(stackTrace).toBe("");
