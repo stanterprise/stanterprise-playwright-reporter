@@ -8,6 +8,7 @@ import {
   buildStepMetadata,
   toMetadataMap,
   truncateValue,
+  processAttachments,
 } from "../utils";
 import { StanterpriseReporterOptions } from "../types";
 import * as grpc from "@grpc/grpc-js";
@@ -26,6 +27,11 @@ export function handleOnStepEndEvent(
 ) {
   // Map step error to status
   const stepStatus = mapStepStatus(!!step.error);
+
+  const attachments = processAttachments(
+    result,
+    options.maxAttachmentSize || 10485760,
+  );
 
   // Build metadata from step annotations
   const metadata = buildStepMetadata(step);
@@ -46,7 +52,8 @@ export function handleOnStepEndEvent(
   if (errorStack) errorMetadata.error_stack = truncateValue(errorStack);
   if (errorValue) errorMetadata.error_value = truncateValue(errorValue);
   if (errorSnippet) errorMetadata.error_snippet = truncateValue(errorSnippet);
-  if (errorLocation) errorMetadata.error_location = truncateValue(errorLocation);
+  if (errorLocation)
+    errorMetadata.error_location = truncateValue(errorLocation);
 
   // Build and send the StepEnd event
   const request = new StepEndEventRequest({
@@ -70,6 +77,7 @@ export function handleOnStepEndEvent(
         : undefined,
       worker_index: result.workerIndex.toString(),
       retry_index: result.retry,
+      attachments: attachments,
     }),
   });
 
