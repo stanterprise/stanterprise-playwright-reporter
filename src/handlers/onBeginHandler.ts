@@ -12,7 +12,6 @@ import {
 } from "@stanterprise/protobuf/testsystem/v1/entities";
 import { generateSuiteId, getEnvVariables, toMetadataMap } from "../utils";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
-import { exec } from "child_process";
 
 export function handleOnBeginEvent(
   config: FullConfig,
