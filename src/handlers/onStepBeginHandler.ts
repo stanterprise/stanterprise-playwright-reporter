@@ -14,6 +14,7 @@ export function handleOnStepBeginEvent(
   result: TestResult,
   step: TestStep,
   runId: string,
+  executionId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions,
   queue?: MessageQueue,
@@ -43,6 +44,7 @@ export function handleOnStepBeginEvent(
         : undefined,
       worker_index: result.workerIndex.toString(),
       retry_index: result.retry,
+      execution_id: executionId,
     }),
   });
 

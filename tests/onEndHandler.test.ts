@@ -5,6 +5,7 @@ import { handleOnEndEvent } from "../src/handlers/onEndHandler";
 import { FullResult } from "@playwright/test/reporter";
 import * as grpc from "@grpc/grpc-js";
 import { StanterpriseReporterOptions } from "../src/types";
+import { reportUnary } from "../src/client/grpcClient";
 
 // Mock the grpcClient module
 jest.mock("../src/client/grpcClient", () => ({
@@ -14,6 +15,17 @@ jest.mock("../src/client/grpcClient", () => ({
 describe("handleOnEndEvent", () => {
   let mockClient: grpc.Client;
   let mockOptions: StanterpriseReporterOptions;
+  const mockRunId = "test-run-id";
+  const mockExecutionId = "execution-123";
+
+  const reportRunEnd = (result: FullResult) =>
+    handleOnEndEvent(
+      result,
+      mockRunId,
+      mockExecutionId,
+      mockClient,
+      mockOptions,
+    );
 
   beforeEach(() => {
     mockClient = {} as grpc.Client;
@@ -33,8 +45,16 @@ describe("handleOnEndEvent", () => {
     };
 
     expect(() => {
-      handleOnEndEvent(result, "test-run-id", mockClient, mockOptions);
+      reportRunEnd(result);
     }).not.toThrow();
+
+    const request = jest.mocked(reportUnary).mock.calls[0]?.[3] as {
+      execution_id?: string;
+      run_id?: string;
+    };
+
+    expect(request.execution_id).toBe(mockExecutionId);
+    expect(request.run_id).toBe(mockRunId);
   });
 
   it("should handle undefined duration", () => {
@@ -46,7 +66,7 @@ describe("handleOnEndEvent", () => {
 
     // Should not throw - should use 0 as default
     expect(() => {
-      handleOnEndEvent(result, "test-run-id", mockClient, mockOptions);
+      reportRunEnd(result);
     }).not.toThrow();
   });
 
@@ -59,7 +79,7 @@ describe("handleOnEndEvent", () => {
 
     // Should not throw - should use 0 as default
     expect(() => {
-      handleOnEndEvent(result, "test-run-id", mockClient, mockOptions);
+      reportRunEnd(result);
     }).not.toThrow();
   });
 
@@ -72,7 +92,7 @@ describe("handleOnEndEvent", () => {
 
     // Should not throw - should use 0 as default
     expect(() => {
-      handleOnEndEvent(result, "test-run-id", mockClient, mockOptions);
+      reportRunEnd(result);
     }).not.toThrow();
   });
 
@@ -85,7 +105,7 @@ describe("handleOnEndEvent", () => {
 
     // Should not throw - should use Date.now() as default
     expect(() => {
-      handleOnEndEvent(result, "test-run-id", mockClient, mockOptions);
+      reportRunEnd(result);
     }).not.toThrow();
   });
 
@@ -98,7 +118,7 @@ describe("handleOnEndEvent", () => {
 
     // Should not throw - should use Date.now() as default
     expect(() => {
-      handleOnEndEvent(result, "test-run-id", mockClient, mockOptions);
+      reportRunEnd(result);
     }).not.toThrow();
   });
 
@@ -111,7 +131,7 @@ describe("handleOnEndEvent", () => {
 
     // Should not throw - should use safe defaults
     expect(() => {
-      handleOnEndEvent(result, "test-run-id", mockClient, mockOptions);
+      reportRunEnd(result);
     }).not.toThrow();
   });
 
@@ -131,7 +151,7 @@ describe("handleOnEndEvent", () => {
       };
 
       expect(() => {
-        handleOnEndEvent(result, "test-run-id", mockClient, mockOptions);
+        reportRunEnd(result);
       }).not.toThrow();
     });
   });

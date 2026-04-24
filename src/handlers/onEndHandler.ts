@@ -25,6 +25,7 @@ function mapTestStatus(status: FullResult["status"]): TestStatus {
 export function handleOnEndEvent(
   result: FullResult,
   runId: string,
+  executionId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions,
   queue?: MessageQueue,
@@ -50,6 +51,7 @@ export function handleOnEndEvent(
     start_time: createTimestampFromMs(validStartTimeMs),
     duration: createDuration(validDuration),
     metadata: toMetadataMap(metadata || {}),
+    execution_id: executionId,
   });
   reportUnary(
     options,

@@ -25,6 +25,7 @@ export function handleOnTestEndEvent(
   test: TestCase,
   result: TestResult,
   runId: string,
+  executionId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions,
   queue?: MessageQueue,
@@ -65,6 +66,7 @@ export function handleOnTestEndEvent(
       tags: test.tags,
       retry_index: result.retry,
       retry_count: test.retries,
+      execution_id: executionId,
     }),
   });
 

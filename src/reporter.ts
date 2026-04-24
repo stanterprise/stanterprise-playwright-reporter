@@ -33,6 +33,8 @@ export default class StanterpriseReporter implements Reporter {
 
   // Generate a unique run ID for this test run
   private runId: string = "";
+  private executionId: string = "";
+
   private runStartTime: Date = new Date();
 
   // Sequential message queue – guarantees ordered delivery to the server
@@ -53,6 +55,8 @@ export default class StanterpriseReporter implements Reporter {
 
     // Generate a UUID for runId
     this.runId = process.env.STANTERPRISE_RUN_ID || randomUUID();
+
+    this.executionId = process.env.STANTERPRISE_EXECUTION_ID || randomUUID();
 
     // Initialize debug file (creates/truncates it) when debug mode is enabled
     initDebugFile(this.options);
@@ -95,6 +99,7 @@ export default class StanterpriseReporter implements Reporter {
         suite,
         process.env.STANTERPRISE_TEST_RUN_NAME || "Playwright Test Run",
         this.runId,
+        this.executionId,
         this.grpcClient!,
         this.options,
         this.messageQueue,
@@ -140,6 +145,7 @@ export default class StanterpriseReporter implements Reporter {
       handleOnEndEvent(
         result,
         this.runId,
+        this.executionId,
         this.grpcClient!,
         this.options,
         this.messageQueue,
@@ -151,8 +157,6 @@ export default class StanterpriseReporter implements Reporter {
   }
 
   onTestBegin(test: TestCase, result: TestResult): void {
-    // Create unique test execution ID combining run ID and test ID
-
     if (this.options.verbose) {
       console.log(`Stanterprise Reporter: Test started - ${test.title}`);
       console.log(`  Run ID: ${this.runId}`);
@@ -163,6 +167,7 @@ export default class StanterpriseReporter implements Reporter {
         test,
         result,
         this.runId,
+        this.executionId,
         this.grpcClient!,
         this.options,
         this.messageQueue,
@@ -185,6 +190,7 @@ export default class StanterpriseReporter implements Reporter {
         result,
         step,
         this.runId,
+        this.executionId,
         this.grpcClient!,
         this.options,
         this.messageQueue,
@@ -203,6 +209,7 @@ export default class StanterpriseReporter implements Reporter {
         result,
         step,
         this.runId,
+        this.executionId,
         this.grpcClient!,
         this.options,
         this.messageQueue,
@@ -221,6 +228,7 @@ export default class StanterpriseReporter implements Reporter {
         test,
         result,
         this.runId,
+        this.executionId,
         this.grpcClient!,
         this.options,
         this.messageQueue,
@@ -237,6 +245,7 @@ export default class StanterpriseReporter implements Reporter {
         test,
         result,
         this.runId,
+        this.executionId,
         this.grpcClient!,
         this.options,
         this.messageQueue,
@@ -256,6 +265,7 @@ export default class StanterpriseReporter implements Reporter {
       handleOnErrorEvent(
         error,
         this.runId,
+        this.executionId,
         this.grpcClient!,
         this.options,
         this.messageQueue,
