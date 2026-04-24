@@ -1,15 +1,36 @@
 /**
  * Tests for onStepEndHandler - testing error extraction, metadata construction, and truncation
  */
-import { handleOnStepEndEvent } from "../src/handlers/onStepEndHandler";
+import { handleOnStepEndEvent as handleOnStepEndEventImpl } from "../src/handlers/onStepEndHandler";
 import type { TestCase, TestResult, TestStep } from "@playwright/test/reporter";
 import * as grpc from "@grpc/grpc-js";
 import { StanterpriseReporterOptions } from "../src/types";
+import { reportUnary } from "../src/client/grpcClient";
 
 // Mock the grpcClient module
 jest.mock("../src/client/grpcClient", () => ({
   reportUnary: jest.fn().mockResolvedValue(undefined),
 }));
+
+const mockExecutionId = "execution-123";
+
+const handleOnStepEndEvent = (
+  test: TestCase,
+  result: TestResult,
+  step: TestStep,
+  runId: string,
+  client: grpc.Client,
+  options: StanterpriseReporterOptions,
+) =>
+  handleOnStepEndEventImpl(
+    test,
+    result,
+    step,
+    runId,
+    mockExecutionId,
+    client,
+    options,
+  );
 
 // Mock the utils module
 jest.mock("../src/utils", () => {
@@ -68,6 +89,16 @@ describe("handleOnStepEndEvent", () => {
           mockOptions,
         );
       }).not.toThrow();
+
+      const request = jest.mocked(reportUnary).mock.calls[0]?.[3] as {
+        step?: {
+          execution_id?: string;
+          run_id?: string;
+        };
+      };
+
+      expect(request.step?.execution_id).toBe(mockExecutionId);
+      expect(request.step?.run_id).toBe("run-123");
     });
 
     it("should handle step with location", () => {

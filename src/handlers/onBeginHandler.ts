@@ -12,12 +12,14 @@ import {
 } from "@stanterprise/protobuf/testsystem/v1/entities";
 import { generateSuiteId, getEnvVariables, toMetadataMap } from "../utils";
 import { TestStatus } from "@stanterprise/protobuf/testsystem/v1/common";
+import { exec } from "child_process";
 
 export function handleOnBeginEvent(
   config: FullConfig,
   suite: Suite,
   name: string,
   runId: string,
+  executionId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions,
   queue?: MessageQueue,
@@ -44,8 +46,9 @@ export function handleOnBeginEvent(
 
   const request = new ReportRunStartEventRequest({
     run_id: runId,
+    execution_id: executionId,
     name: name,
-    test_suites: mapSuites(suite, runId),
+    test_suites: mapSuites(suite, runId, executionId),
     total_tests: suite.allTests().length,
     metadata: toMetadataMap(metadata),
   });
@@ -65,10 +68,16 @@ export function handleOnBeginEvent(
   });
 }
 
-function mapSuites(suite: Suite, runId: string): TestSuiteRun[] {
+function mapSuites(
+  suite: Suite,
+  runId: string,
+  executionId: string,
+): TestSuiteRun[] {
   let allSuites = getAllSuites(suite);
 
-  return allSuites.map((currentSuite) => mapSingleSuite(currentSuite, runId));
+  return allSuites.map((currentSuite) =>
+    mapSingleSuite(currentSuite, runId, executionId),
+  );
 }
 
 function getAllSuites(suite: Suite): Suite[] {
@@ -80,7 +89,11 @@ function getAllSuites(suite: Suite): Suite[] {
   return suites;
 }
 
-function mapSingleSuite(suite: Suite, runId: string): TestSuiteRun {
+function mapSingleSuite(
+  suite: Suite,
+  runId: string,
+  executionId: string,
+): TestSuiteRun {
   const suiteId = generateSuiteId(suite);
   const parentSuiteId = suite.parent
     ? generateSuiteId(suite.parent)
@@ -122,6 +135,7 @@ function mapSingleSuite(suite: Suite, runId: string): TestSuiteRun {
           status: TestStatus.NOT_RUN,
           retry_count: test.retries,
           retry_index: 0,
+          execution_id: executionId,
         }),
     ),
     test_case_ids: suite.tests.map((test) => test.id),

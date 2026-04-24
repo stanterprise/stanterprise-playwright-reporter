@@ -12,6 +12,7 @@ export function handleOnTestBeginEvent(
   test: TestCase,
   result: TestResult,
   runId: string,
+  executionId: string,
   client: grpc.Client,
   options: StanterpriseReporterOptions,
   queue?: MessageQueue,
@@ -31,6 +32,7 @@ export function handleOnTestBeginEvent(
       test_suite_id: generateSuiteId(test.parent),
       start_time: createTimestamp(result.startTime),
       tags: test.tags,
+      execution_id: executionId,
     }),
   });
 

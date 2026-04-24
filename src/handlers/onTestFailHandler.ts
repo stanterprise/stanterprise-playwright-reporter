@@ -14,6 +14,7 @@ export function handleOnTestFailEvent(
   test: TestCase,
   result: TestResult,
   runId: string,
+  executionId: string,
   grpcClient: grpc.Client,
   options: StanterpriseReporterOptions,
   queue?: MessageQueue,
@@ -33,6 +34,7 @@ export function handleOnTestFailEvent(
     timestamp: createTimestampFromMs(Date.now()),
     attachments: attachments,
     retry_index: result.retry,
+    execution_id: executionId,
   });
 
   // Fire-and-forget to avoid slowing tests

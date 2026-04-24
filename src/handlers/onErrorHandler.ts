@@ -9,6 +9,7 @@ import { MessageQueue } from "../client/messageQueue";
 export function handleOnErrorEvent(
   error: TestError,
   runId: string,
+  executionId: string,
   grpcClient: grpc.Client,
   options: StanterpriseReporterOptions,
   queue?: MessageQueue,
@@ -17,6 +18,7 @@ export function handleOnErrorEvent(
     run_id: runId,
     message: error.message,
     timestamp: createTimestampFromMs(Date.now()),
+    execution_id: executionId,
   });
   // Fire-and-forget to avoid slowing tests
   reportUnary(
