@@ -8,7 +8,7 @@ import { StanterpriseReporterOptions } from "../types";
 export default function defineOptions(
   providedOptions: StanterpriseReporterOptions,
 ): StanterpriseReporterOptions {
-  const result: StanterpriseReporterOptions = {};
+  const result: StanterpriseReporterOptions = {} as StanterpriseReporterOptions;
   result.grpcAddress = identifyAddress(providedOptions);
   result.grpcEnabled =
     providedOptions.grpcEnabled ??
@@ -26,6 +26,10 @@ export default function defineOptions(
     providedOptions.debugFile ||
     process.env.STANTERPRISE_DEBUG_FILE ||
     "stanterprise-debug.jsonl";
+
+  result.tls =
+    providedOptions.tls ??
+    (process.env.STANTERPRISE_GRPC_TLS || "true").toLowerCase() === "true";
 
   return result;
 }

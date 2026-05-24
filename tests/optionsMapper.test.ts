@@ -9,6 +9,7 @@ describe("defineOptions", () => {
     // Clear any environment variables that might affect tests
     delete process.env.STANTERPRISE_GRPC_ADDRESS;
     delete process.env.STANTERPRISE_GRPC_ENABLED;
+    delete process.env.STANTERPRISE_GRPC_TLS;
     delete process.env.STANTERPRISE_GRPC_HOST;
     delete process.env.STANTERPRISE_GRPC_PORT;
     delete process.env.STANTERPRISE_DEBUG;
@@ -28,6 +29,7 @@ describe("defineOptions", () => {
     expect(result.grpcRetryDelay).toBe(100);
     expect(result.debug).toBe(false);
     expect(result.debugFile).toBe("stanterprise-debug.jsonl");
+    expect(result.tls).toBe(true);
   });
 
   it("should preserve user-provided retry options", () => {
@@ -50,6 +52,7 @@ describe("defineOptions", () => {
       verbose: true,
       grpcMaxRetries: 10,
       grpcRetryDelay: 500,
+      tls: false,
     };
 
     const result = defineOptions(providedOptions);
@@ -62,29 +65,35 @@ describe("defineOptions", () => {
     expect(result.verbose).toBe(true);
     expect(result.grpcMaxRetries).toBe(10);
     expect(result.grpcRetryDelay).toBe(500);
+    expect(result.tls).toBe(false);
   });
 
   it("should use environment variables when options not provided", () => {
     process.env.STANTERPRISE_GRPC_ADDRESS = "env-server.com:50051";
     process.env.STANTERPRISE_GRPC_ENABLED = "false";
+    process.env.STANTERPRISE_GRPC_TLS = "false";
 
     const result = defineOptions({});
 
     expect(result.grpcAddress).toBe("env-server.com:50051");
     expect(result.grpcEnabled).toBe(false);
+    expect(result.tls).toBe(false);
   });
 
   it("should prefer provided options over environment variables", () => {
     process.env.STANTERPRISE_GRPC_ADDRESS = "env-server.com:50051";
     process.env.STANTERPRISE_GRPC_ENABLED = "false";
+    process.env.STANTERPRISE_GRPC_TLS = "false";
 
     const result = defineOptions({
       grpcAddress: "config-server.com:50051",
       grpcEnabled: true,
+      tls: true,
     });
 
     expect(result.grpcAddress).toBe("config-server.com:50051");
     expect(result.grpcEnabled).toBe(true);
+    expect(result.tls).toBe(true);
   });
 
   it("should prefer STANTERPRISE_GRPC_ADDRESS over STANTERPRISE_GRPC_HOST and STANTERPRISE_GRPC_PORT", () => {
@@ -201,5 +210,20 @@ describe("defineOptions", () => {
 
     expect(result.debug).toBe(false);
     expect(result.debugFile).toBe("config-debug.jsonl");
+  });
+
+  it("should enable tls when STANTERPRISE_GRPC_TLS is true regardless of casing", () => {
+    process.env.STANTERPRISE_GRPC_TLS = "TRUE";
+    expect(defineOptions({}).tls).toBe(true);
+
+    process.env.STANTERPRISE_GRPC_TLS = "True";
+    expect(defineOptions({}).tls).toBe(true);
+  });
+
+  it("should default tls to true when STANTERPRISE_GRPC_TLS is unset or not true", () => {
+    expect(defineOptions({}).tls).toBe(true);
+
+    process.env.STANTERPRISE_GRPC_TLS = "invalid";
+    expect(defineOptions({}).tls).toBe(false);
   });
 });

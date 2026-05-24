@@ -4,19 +4,19 @@ import { writeDebugEntry } from "../utils/debugLogger";
 import { MessageQueue } from "./messageQueue";
 
 export default function getClient(
-  options: StanterpriseReporterOptions
+  options: StanterpriseReporterOptions,
 ): grpc.Client | null {
   try {
     const maxMessageSize = options.grpcMaxMessageSize || 104857600; // 100MB default
 
-    return new grpc.Client(
-      options.grpcAddress!,
-      grpc.credentials.createInsecure(),
-      {
-        "grpc.max_send_message_length": maxMessageSize,
-        "grpc.max_receive_message_length": maxMessageSize,
-      }
-    );
+    const credentials = options.tls
+      ? grpc.credentials.createSsl()
+      : grpc.credentials.createInsecure();
+
+    return new grpc.Client(options.grpcAddress!, credentials, {
+      "grpc.max_send_message_length": maxMessageSize,
+      "grpc.max_receive_message_length": maxMessageSize,
+    });
   } catch (e) {
     console.error("Failed to create gRPC client", e);
   }
@@ -34,14 +34,17 @@ function shouldAttemptRetryForCode(errorCode: grpc.status): boolean {
     grpc.status.INTERNAL,
     grpc.status.UNKNOWN,
   ]);
-  
+
   return transientCodes.has(errorCode);
 }
 
 /**
  * Calculates wait time using power-of-two exponential backoff
  */
-function calculateWaitDuration(baseDelayMs: number, attemptsSoFar: number): number {
+function calculateWaitDuration(
+  baseDelayMs: number,
+  attemptsSoFar: number,
+): number {
   return baseDelayMs * Math.pow(2, attemptsSoFar);
 }
 
@@ -55,7 +58,7 @@ function executeSingleAttempt(
     serialize?: (w?: any) => Uint8Array;
     serializeBinary?: () => Uint8Array;
   },
-  deadlineMs: number
+  deadlineMs: number,
 ): Promise<Buffer> {
   const reqSerialize = (arg: unknown): Buffer => {
     const m = arg as
@@ -67,8 +70,8 @@ function executeSingleAttempt(
     const bytes = m?.serializeBinary
       ? m.serializeBinary()
       : m?.serialize
-      ? m.serialize()
-      : new Uint8Array(0);
+        ? m.serialize()
+        : new Uint8Array(0);
     return Buffer.from(bytes);
   };
 
@@ -90,7 +93,7 @@ function executeSingleAttempt(
             arg: unknown,
             metadata: grpc.Metadata,
             options: grpc.CallOptions,
-            callback: (err: grpc.ServiceError | null, res: Buffer) => void
+            callback: (err: grpc.ServiceError | null, res: Buffer) => void,
           ) => void;
         }
       ).makeUnaryRequest(
@@ -103,7 +106,7 @@ function executeSingleAttempt(
         (err, response) => {
           if (err) return reject(err);
           resolve(response);
-        }
+        },
       );
     } catch (e) {
       reject(e);
@@ -134,41 +137,45 @@ async function attemptWithRetries(
     serializeBinary?: () => Uint8Array;
   },
   deadlineMs: number,
-  maxRetries: number
+  maxRetries: number,
 ): Promise<Buffer> {
   let attemptNumber = 0;
   let lastError: Error | null = null;
 
   // Try initial attempt + retries
-  for (let retriesRemaining = maxRetries; retriesRemaining >= 0; retriesRemaining--) {
+  for (
+    let retriesRemaining = maxRetries;
+    retriesRemaining >= 0;
+    retriesRemaining--
+  ) {
     try {
       return await executeSingleAttempt(grpcClient, path, message, deadlineMs);
     } catch (err) {
       lastError = err as Error;
       const grpcErr = err as grpc.ServiceError;
       const statusCode = grpcErr?.code ?? grpc.status.UNKNOWN;
-      
+
       // Check if we should retry this error
       const isRetryable = shouldAttemptRetryForCode(statusCode);
       const hasRetriesLeft = retriesRemaining > 0;
-      
+
       if (!isRetryable || !hasRetriesLeft) {
         throw err;
       }
-      
+
       // Log retry attempt if verbose
       if (options.verbose) {
         console.log(
           `gRPC call failed (code: ${statusCode}), retrying... ` +
-          `(attempt ${attemptNumber + 1}, ${retriesRemaining} retries left)`
+            `(attempt ${attemptNumber + 1}, ${retriesRemaining} retries left)`,
         );
       }
-      
+
       // Calculate and wait for backoff duration
       const baseDelay = options.grpcRetryDelay ?? 100;
       const waitTime = calculateWaitDuration(baseDelay, attemptNumber);
       await pauseExecution(waitTime);
-      
+
       attemptNumber++;
     }
   }
@@ -194,7 +201,7 @@ export async function reportUnary(
     serializeBinary?: () => Uint8Array;
   },
   deadlineMs: number = 1000,
-  queue?: MessageQueue
+  queue?: MessageQueue,
 ): Promise<Buffer> {
   if (!options.grpcEnabled || !grpcClient) {
     return Buffer.alloc(0);
@@ -211,7 +218,7 @@ export async function reportUnary(
       grpcPath,
       message,
       deadlineMs,
-      maxRetries
+      maxRetries,
     );
   };
 
