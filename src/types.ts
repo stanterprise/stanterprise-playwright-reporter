@@ -88,6 +88,12 @@ export interface StanterpriseReporterOptions {
    * @default "stanterprise-debug.jsonl" or process.env.STANTERPRISE_DEBUG_FILE
    */
   debugFile?: string;
+
+  /**
+   * Whether to use TLS for gRPC connections. If true, the client will attempt to establish a secure connection.
+   * @default true or process.env.STANTERPRISE_GRPC_TLS === "true"
+   */
+  tls: boolean;
 }
 
 /**

@@ -29,7 +29,8 @@ import {
 export default class StanterpriseReporter implements Reporter {
   // Generic gRPC client (we call unary methods by path directly).
   private grpcClient: grpc.Client | null = null;
-  private options: StanterpriseReporterOptions = {};
+  private options: StanterpriseReporterOptions =
+    {} as StanterpriseReporterOptions;
 
   // Generate a unique run ID for this test run
   private runId: string = "";
@@ -41,7 +42,9 @@ export default class StanterpriseReporter implements Reporter {
   private messageQueue = new MessageQueue();
   private metadata: Record<string, string> = {};
 
-  constructor(options: StanterpriseReporterOptions = {}) {
+  constructor(
+    options: StanterpriseReporterOptions = {} as StanterpriseReporterOptions,
+  ) {
     this.options = defineOptions(options);
 
     if (this.options.verbose) {
