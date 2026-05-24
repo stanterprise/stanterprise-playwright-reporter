@@ -28,6 +28,8 @@ jobs:
           fi
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -44,7 +46,5 @@ jobs:
       - name: Build package
         run: npm run build
 
-      - name: Publish to NPM
+      - name: Publish to NPM (OIDC Trusted Publishing)
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
